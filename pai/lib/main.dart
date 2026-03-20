@@ -5,6 +5,7 @@ import 'models/board_project.dart';
 import 'models/new_project_draft.dart';
 import 'models/project.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/projects_screen.dart';
 import 'services/board_position_storage.dart';
 import 'widgets/project_board.dart';
 
@@ -135,6 +136,7 @@ class _AppShellState extends State<AppShell> {
       title: draft.title,
       status: draft.status,
       brief: draft.brief,
+      tags: draft.tags,
       nextSteps: const [],
       blockers: const [],
       sessions: const [],
@@ -145,7 +147,7 @@ class _AppShellState extends State<AppShell> {
       id: projectId,
       title: draft.title,
       brief: draft.brief,
-      category: draft.category,
+      tags: draft.tags,
       status: draft.status,
       progress: draft.progress,
       boardPosition: boardPosition,
@@ -168,6 +170,15 @@ class _AppShellState extends State<AppShell> {
       selectedProjectId = projectId;
       projectSelectionRequestId++;
       selectedIndex = 1;
+    });
+  }
+
+  void updateProject(Project nextProject) {
+    setState(() {
+      projects = [
+        for (final project in projects)
+          project.id == nextProject.id ? nextProject : project,
+      ];
     });
   }
 
@@ -221,6 +232,7 @@ class _AppShellState extends State<AppShell> {
         projects: projects,
         selectedProjectId: selectedProjectId,
         selectionRequestId: projectSelectionRequestId,
+        onProjectUpdated: updateProject,
       ),
       RemindersScreen(projects: projects),
       const SettingsScreen(),
@@ -294,332 +306,6 @@ class _AppShellState extends State<AppShell> {
           ),
         );
       },
-    );
-  }
-}
-
-class ProjectsScreen extends StatefulWidget {
-  const ProjectsScreen({
-    super.key,
-    required this.projects,
-    this.selectedProjectId,
-    this.selectionRequestId = 0,
-  });
-
-  final List<Project> projects;
-  final String? selectedProjectId;
-  final int selectionRequestId;
-
-  @override
-  State<ProjectsScreen> createState() => _ProjectsScreenState();
-}
-
-class _ProjectsScreenState extends State<ProjectsScreen> {
-  late Project selectedProject;
-  final TextEditingController sessionController = TextEditingController();
-  final TextEditingController questionController = TextEditingController();
-  String assistantReply =
-      'Ask about a project to see a summary, blockers, or next steps.';
-
-  @override
-  void initState() {
-    super.initState();
-    selectedProject = widget.projects.first;
-    _applyRequestedSelection();
-  }
-
-  Project _projectForId(String? projectId) {
-    return widget.projects.firstWhere(
-      (project) => project.id == projectId,
-      orElse: () => widget.projects.first,
-    );
-  }
-
-  void _applyRequestedSelection() {
-    if (widget.selectedProjectId == null) return;
-    selectedProject = _projectForId(widget.selectedProjectId);
-    assistantReply =
-        'Ask about a project to see a summary, blockers, or next steps.';
-  }
-
-  @override
-  void didUpdateWidget(covariant ProjectsScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!widget.projects.any((project) => project.id == selectedProject.id)) {
-      selectedProject = widget.projects.first;
-    }
-    if (widget.selectionRequestId != oldWidget.selectionRequestId) {
-      _applyRequestedSelection();
-    }
-  }
-
-  @override
-  void dispose() {
-    sessionController.dispose();
-    questionController.dispose();
-    super.dispose();
-  }
-
-  void askAssistant() {
-    final input = questionController.text.toLowerCase();
-    if (input.trim().isEmpty) return;
-
-    setState(() {
-      if (input.contains('next')) {
-        assistantReply =
-            'Next steps for ${selectedProject.title}: ${selectedProject.nextSteps.join(', ')}.';
-      } else if (input.contains('block') || input.contains('stuck')) {
-        assistantReply = selectedProject.blockers.isEmpty
-            ? '${selectedProject.title} has no recorded blockers right now.'
-            : 'Current blockers for ${selectedProject.title}: ${selectedProject.blockers.join(', ')}.';
-      } else if (input.contains('latest') ||
-          input.contains('summary') ||
-          input.contains('what happened')) {
-        assistantReply = selectedProject.brief;
-      } else {
-        assistantReply =
-            '${selectedProject.title} is ${selectedProject.status}. ${selectedProject.brief}';
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 1100;
-
-            final projectList = Card(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: widget.projects.length,
-                itemBuilder: (context, index) {
-                  final project = widget.projects[index];
-                  final selected = project.id == selectedProject.id;
-                  return ListTile(
-                    selected: selected,
-                    leading: CircleAvatar(
-                      child: Text(project.title.characters.first),
-                    ),
-                    title: Text(project.title),
-                    subtitle: Text(
-                      project.brief,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: _StatusChip(status: project.status),
-                    onTap: () => setState(() => selectedProject = project),
-                  );
-                },
-              ),
-            );
-
-            final detailPane = ListView(
-              children: [
-                Text(
-                  selectedProject.title,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _StatusChip(status: selectedProject.status),
-                    const SizedBox(width: 8),
-                    Text('${selectedProject.sessions.length} sessions'),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _SectionCard(
-                  title: 'Current brief',
-                  child: Text(selectedProject.brief),
-                ),
-                _SectionCard(
-                  title: 'Next steps',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: selectedProject.nextSteps
-                        .map(
-                          (step) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 2),
-                                  child: Icon(
-                                    Icons.check_circle_outline,
-                                    size: 18,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(step)),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-                _SectionCard(
-                  title: 'Recent sessions',
-                  child: selectedProject.sessions.isEmpty
-                      ? const Text('No sessions yet.')
-                      : Column(
-                          children: selectedProject.sessions
-                              .map(
-                                (session) => Card(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  child: ListTile(
-                                    title: Text(session.summary),
-                                    subtitle: Text(session.dateLabel),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                ),
-                _SectionCard(
-                  title: 'New session recap',
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: sessionController,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintText: 'What happened in this work session?',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          FilledButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Session saving will be wired up next.',
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.save_outlined),
-                            label: const Text('Save recap'),
-                          ),
-                          const SizedBox(width: 12),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Voice note support will come after the base flow works.',
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.mic_none_outlined),
-                            label: const Text('Voice note'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-
-            final assistantPane = Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Assistant',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: questionController,
-                      decoration: const InputDecoration(
-                        hintText: 'Ask about this project',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: askAssistant,
-                      child: const Text('Ask'),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4F5FB),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(assistantReply),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _PromptChip(
-                          label: 'What happened last time?',
-                          onTap: () => questionController.text =
-                              'What happened last time?',
-                        ),
-                        _PromptChip(
-                          label: 'What should I work on next?',
-                          onTap: () => questionController.text =
-                              'What should I work on next?',
-                        ),
-                        _PromptChip(
-                          label: 'What is blocking this?',
-                          onTap: () => questionController.text =
-                              'What is blocking this?',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-
-            if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(width: 320, child: projectList),
-                  const SizedBox(width: 20),
-                  Expanded(child: detailPane),
-                  const SizedBox(width: 20),
-                  SizedBox(width: 320, child: assistantPane),
-                ],
-              );
-            }
-
-            return ListView(
-              children: [
-                SizedBox(height: 280, child: projectList),
-                const SizedBox(height: 16),
-                SizedBox(height: 900, child: detailPane),
-                const SizedBox(height: 16),
-                assistantPane,
-              ],
-            );
-          },
-        ),
-      ),
     );
   }
 }
@@ -710,76 +396,5 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _SectionCard({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String status;
-
-  const _StatusChip({required this.status});
-
-  Color get color {
-    switch (status) {
-      case 'active':
-        return Colors.green;
-      case 'paused':
-        return Colors.orange;
-      case 'blocked':
-        return Colors.red;
-      default:
-        return Colors.blueGrey;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(status),
-      side: BorderSide(color: color.withValues(alpha: 0.3)),
-      backgroundColor: color.withValues(alpha: 0.1),
-      labelStyle: TextStyle(color: color, fontWeight: FontWeight.w600),
-    );
-  }
-}
-
-class _PromptChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _PromptChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(label: Text(label), onPressed: onTap);
   }
 }

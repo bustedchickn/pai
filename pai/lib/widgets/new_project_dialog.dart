@@ -13,8 +13,8 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _briefController = TextEditingController();
+  final _tagsController = TextEditingController(text: 'Personal');
 
-  String _category = 'Personal';
   String _status = 'active';
   bool _includeProgress = false;
   double _progress = 0.15;
@@ -23,7 +23,17 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
   void dispose() {
     _titleController.dispose();
     _briefController.dispose();
+    _tagsController.dispose();
     super.dispose();
+  }
+
+  List<String> _parsedTags() {
+    final tags = _tagsController.text
+        .split(',')
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+    return tags.isEmpty ? ['Personal'] : tags;
   }
 
   void _submit() {
@@ -35,7 +45,7 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
       NewProjectDraft(
         title: _titleController.text.trim(),
         brief: _briefController.text.trim(),
-        category: _category,
+        tags: _parsedTags(),
         status: _status,
         progress: _includeProgress ? _progress : 0,
       ),
@@ -87,28 +97,19 @@ class _NewProjectDialogState extends State<NewProjectDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: _category,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'Personal',
-                      child: Text('Personal'),
-                    ),
-                    DropdownMenuItem(value: 'Coding', child: Text('Coding')),
-                    DropdownMenuItem(value: 'Work', child: Text('Work')),
-                    DropdownMenuItem(
-                      value: 'Creative',
-                      child: Text('Creative'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Learning',
-                      child: Text('Learning'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _category = value);
+                TextFormField(
+                  controller: _tagsController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Tags',
+                    hintText: 'Personal, Coding, MVP',
+                    helperText: 'Separate tags with commas.',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Add at least one tag.';
+                    }
+                    return null;
                   },
                 ),
                 const SizedBox(height: 16),

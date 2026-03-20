@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/board_project.dart';
 import '../models/new_project_draft.dart';
 import '../models/project.dart';
+import '../widgets/glass_surface.dart';
 import '../widgets/new_project_dialog.dart';
 import '../widgets/project_board.dart';
 
@@ -67,7 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final searchableText = [
         boardProject.title,
         boardProject.brief,
-        boardProject.category,
+        boardProject.tags.join(' '),
         boardProject.status,
       ].join(' ').toLowerCase();
       return searchableText.contains(query);
@@ -157,20 +158,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
-                    board: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: const Color(0xFFD5DDEE)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF7589BC).withValues(
-                              alpha: 0.08,
-                            ),
-                            blurRadius: 22,
-                            offset: const Offset(0, 14),
-                          ),
+                    board: GlassSurface(
+                      padding: EdgeInsets.zero,
+                      borderRadius: BorderRadius.circular(28),
+                      blurSigma: 18,
+                      tintColor: const Color(0xFFF4F8FF),
+                      tintOpacity: 0.56,
+                      borderOpacity: 0.54,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.34),
+                          const Color(0xFFEAF1FF).withValues(alpha: 0.52),
+                          const Color(0xFFFFFCF6).withValues(alpha: 0.42),
                         ],
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7589BC).withValues(alpha: 0.1),
+                          blurRadius: 26,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
                       child: ProjectBoard(
                         boardProjects: visibleBoardProjects,
                         onProjectDragged: widget.onProjectMoved,
@@ -214,26 +224,44 @@ class _DashboardTopBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 960;
-        final searchField = SizedBox(
-          height: 48,
-          child: TextField(
-            controller: searchController,
-            onChanged: onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'Search projects, categories, or status',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: searchController.text.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: onClearSearch,
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide.none,
+        final searchField = GlassSurface(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          borderRadius: BorderRadius.circular(20),
+          blurSigma: 14,
+          tintColor: const Color(0xFFF9FBFF),
+          tintOpacity: 0.62,
+          borderOpacity: 0.42,
+          highlightOpacity: 0.28,
+          boxShadow: const [],
+          child: SizedBox(
+            height: 48,
+            child: TextField(
+              controller: searchController,
+              onChanged: onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Search projects, categories, or status',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: onClearSearch,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                filled: true,
+                fillColor: Colors.transparent,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
@@ -246,44 +274,48 @@ class _DashboardTopBar extends StatelessWidget {
           children: [
             FilledButton.icon(
               onPressed: onNewProject,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF3557A5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
               icon: const Icon(Icons.add_rounded),
               label: const Text('New project'),
             ),
-            IconButton.filledTonal(
-              onPressed: onOpenSettings,
-              tooltip: 'Settings',
-              icon: const Icon(Icons.tune_rounded),
-            ),
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: Color(0xFFE8EEFF),
-              child: Text(
-                'P',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF3557A5),
-                ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: BorderRadius.circular(18),
+              blurSigma: 12,
+              tintColor: const Color(0xFFF8FBFF),
+              tintOpacity: 0.48,
+              boxShadow: const [],
+              child: IconButton(
+                onPressed: onOpenSettings,
+                tooltip: 'Settings',
+                icon: const Icon(Icons.tune_rounded),
               ),
             ),
+            const _ProfileBadge(),
           ],
         );
 
-        return Container(
+        return GlassSurface(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFFDFEFF), Color(0xFFF4F7FE)],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFD8DFEE)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8698C5).withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 12),
-              ),
+          borderRadius: BorderRadius.circular(24),
+          blurSigma: 20,
+          tintColor: const Color(0xFFF4F8FF),
+          tintOpacity: 0.56,
+          borderOpacity: 0.48,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withValues(alpha: 0.36),
+              const Color(0xFFEAF2FF).withValues(alpha: 0.5),
+              const Color(0xFFFFFCF7).withValues(alpha: 0.34),
             ],
           ),
           child: isCompact
@@ -321,13 +353,13 @@ class _BrandBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDF2FF),
-        borderRadius: BorderRadius.circular(18),
-      ),
+    return GlassSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      borderRadius: BorderRadius.circular(18),
+      blurSigma: 12,
+      tintColor: const Color(0xFFEFF4FF),
+      tintOpacity: 0.64,
+      boxShadow: const [],
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -337,6 +369,13 @@ class _BrandBadge extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF3557A5),
               borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3557A5).withValues(alpha: 0.24),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: const Icon(
               Icons.grid_view_rounded,
@@ -353,6 +392,33 @@ class _BrandBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileBadge extends StatelessWidget {
+  const _ProfileBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassSurface(
+      padding: const EdgeInsets.all(4),
+      borderRadius: BorderRadius.circular(999),
+      blurSigma: 12,
+      tintColor: const Color(0xFFF8FBFF),
+      tintOpacity: 0.5,
+      boxShadow: const [],
+      child: const CircleAvatar(
+        radius: 18,
+        backgroundColor: Color(0xFFE8EEFF),
+        child: Text(
+          'P',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF3557A5),
+          ),
+        ),
       ),
     );
   }
@@ -377,32 +443,42 @@ class _WorkspaceShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFF9FBFF), Color(0xFFF4F7FD), Color(0xFFFCFBF8)],
-        ),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: const Color(0xFFD8DFEE)),
+    return GlassSurface(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      borderRadius: BorderRadius.circular(32),
+      blurSigma: 24,
+      tintColor: const Color(0xFFF4F8FF),
+      tintOpacity: 0.44,
+      borderOpacity: 0.46,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withValues(alpha: 0.3),
+          const Color(0xFFEAF2FF).withValues(alpha: 0.42),
+          const Color(0xFFFFFBF5).withValues(alpha: 0.28),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Column(
-          children: [
-            _WorkspaceHeader(
-              title: title,
-              subtitle: subtitle,
-              totalVisible: totalVisible,
-              totalProjects: totalProjects,
-            ),
-            const SizedBox(height: 10),
-            statusStrip,
-            const SizedBox(height: 12),
-            Expanded(child: board),
-          ],
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF8093BE).withValues(alpha: 0.12),
+          blurRadius: 28,
+          offset: const Offset(0, 18),
         ),
+      ],
+      child: Column(
+        children: [
+          _WorkspaceHeader(
+            title: title,
+            subtitle: subtitle,
+            totalVisible: totalVisible,
+            totalProjects: totalProjects,
+          ),
+          const SizedBox(height: 10),
+          statusStrip,
+          const SizedBox(height: 12),
+          Expanded(child: board),
+        ],
       ),
     );
   }
@@ -458,7 +534,7 @@ class _WorkspaceHeader extends StatelessWidget {
               label: '$totalVisible visible',
             ),
             _MiniInfoPill(
-              icon: Icons.open_with_rounded,
+              icon: Icons.layers_rounded,
               label: '$totalProjects total',
             ),
             const _MiniInfoPill(
@@ -474,7 +550,7 @@ class _WorkspaceHeader extends StatelessWidget {
             children: [
               info,
               const SizedBox(height: 10),
-              meta,
+              Align(alignment: Alignment.centerRight, child: meta),
             ],
           );
         }
@@ -483,8 +559,10 @@ class _WorkspaceHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: info),
-            const SizedBox(width: 16),
-            Flexible(child: meta),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Align(alignment: Alignment.topRight, child: meta),
+            ),
           ],
         );
       },
@@ -500,13 +578,14 @@ class _MiniInfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD8DFEE)),
-      ),
+      borderRadius: BorderRadius.circular(999),
+      blurSigma: 12,
+      tintColor: const Color(0xFFF8FBFF),
+      tintOpacity: 0.58,
+      borderOpacity: 0.42,
+      boxShadow: const [],
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -561,46 +640,52 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 108),
+    return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD8DFEE)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: metric.tone.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(18),
+      blurSigma: 14,
+      tintColor: const Color(0xFFF9FBFF),
+      tintOpacity: 0.6,
+      borderOpacity: 0.42,
+      boxShadow: const [],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 116),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: metric.tone.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.45),
+                ),
+              ),
+              child: Icon(metric.icon, size: 16, color: metric.tone),
             ),
-            child: Icon(metric.icon, size: 16, color: metric.tone),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                metric.value,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  metric.value,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              Text(
-                metric.label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFF5B6985),
+                Text(
+                  metric.label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFF5B6985),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

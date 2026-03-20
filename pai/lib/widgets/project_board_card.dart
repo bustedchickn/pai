@@ -25,6 +25,8 @@ class ProjectBoardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleTags = boardProject.tags.take(2).toList();
+    final remainingTagCount = boardProject.tags.length - visibleTags.length;
     final scale = isPressed
         ? 0.992
         : isDragging
@@ -142,15 +144,25 @@ class ProjectBoardCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    Chip(
-                      visualDensity: const VisualDensity(
-                        horizontal: -2,
-                        vertical: -2,
+                    for (final tag in visibleTags)
+                      Chip(
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -2,
+                        ),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        label: Text(tag),
+                        avatar: const Icon(Icons.sell_outlined, size: 16),
                       ),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      label: Text(boardProject.category),
-                      avatar: const Icon(Icons.sell_outlined, size: 16),
-                    ),
+                    if (remainingTagCount > 0)
+                      Chip(
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -2,
+                        ),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        label: Text('+$remainingTagCount'),
+                      ),
                   ],
                 ),
               ],

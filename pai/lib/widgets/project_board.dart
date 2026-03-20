@@ -1,11 +1,12 @@
-import 'dart:math' as math;
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../models/board_project.dart';
 import '../services/board_hover_sound_player.dart';
+import 'glass_surface.dart';
 import 'project_board_card.dart';
 
 typedef ProjectBoardDragCallback =
@@ -48,8 +49,8 @@ class ProjectBoard extends StatefulWidget {
   static const double defaultViewportHeight = 760;
   static const double defaultCardWidth = 220;
   static const double defaultCardHeight = 196;
-  static const double minScale = 0.64;
-  static const double maxScale = 2.6;
+  static const double minScaleFloor = 0.22;
+  static const double maxScale = 2.8;
 
   @override
   State<ProjectBoard> createState() => _ProjectBoardState();
@@ -57,6 +58,8 @@ class ProjectBoard extends StatefulWidget {
 
 class _ProjectBoardState extends State<ProjectBoard>
     with SingleTickerProviderStateMixin {
+  static const Duration _resetCollapseDelay = Duration(milliseconds: 2300);
+
   final GlobalKey _boardViewportKey = GlobalKey();
   final BoardHoverSoundPlayer _soundPlayer = BoardHoverSoundPlayer();
 
@@ -64,7 +67,14 @@ class _ProjectBoardState extends State<ProjectBoard>
   late final TransformationController _transformationController;
   late List<String> _renderOrder;
 
+  Timer? _resetCollapseTimer;
+  Size _viewportSize = Size.zero;
+  bool _hasInitializedView = false;
+  bool _hasCustomizedViewport = false;
   bool _isPointerOverBoard = false;
+  bool _isPointerNearResetArea = false;
+  bool _isResetControlHovered = false;
+  bool _isResetControlExpanded = true;
   String? _hoveredProjectId;
   String? _pressedProjectId;
   String? _draggingProjectId;
@@ -81,6 +91,7 @@ class _ProjectBoardState extends State<ProjectBoard>
       vsync: this,
       duration: const Duration(seconds: 16),
     )..repeat();
+    _scheduleResetControlCollapse();
   }
 
   @override
@@ -102,6 +113,7 @@ class _ProjectBoardState extends State<ProjectBoard>
 
   @override
   void dispose() {
+    _resetCollapseTimer?.cancel();
     _soundPlayer.dispose();
     _transformationController.dispose();
     _idleController.dispose();
@@ -216,12 +228,123 @@ class _ProjectBoardState extends State<ProjectBoard>
     return _transformationController.toScene(viewportPosition);
   }
 
+  double _minimumScaleFor(Size viewportSize) {
+    final availableWidth = math.max(viewportSize.width - 72, 1);
+    final availableHeight = math.max(viewportSize.height - 72, 1);
+    final fitScale = math.min(
+      availableWidth / widget.boardWidth,
+      availableHeight / widget.boardHeight,
+    );
+    return (fitScale * 0.96)
+        .clamp(ProjectBoard.minScaleFloor, 0.62)
+        .toDouble();
+  }
+
+  double _resetScaleFor(Size viewportSize) {
+    final minimumScale = _minimumScaleFor(viewportSize);
+    return math.max(minimumScale * 1.9, 0.84)
+        .clamp(minimumScale, 1.0)
+        .toDouble();
+  }
+
+  Matrix4 _buildResetTransform(Size viewportSize) {
+    if (viewportSize.isEmpty) {
+      return Matrix4.identity();
+    }
+
+    final scale = _resetScaleFor(viewportSize);
+    final dx = (viewportSize.width - (widget.boardWidth * scale)) / 2;
+    final dy =
+        ((viewportSize.height - (widget.boardHeight * scale)) / 2) -
+        math.min(26.0, viewportSize.height * 0.05);
+
+    return Matrix4.translationValues(dx, dy, 0)
+      ..multiply(Matrix4.diagonal3Values(scale, scale, 1));
+  }
+
+  void _syncViewport(Size viewportSize) {
+    final sizeChanged =
+        (viewportSize.width - _viewportSize.width).abs() > 0.5 ||
+        (viewportSize.height - _viewportSize.height).abs() > 0.5;
+
+    _viewportSize = viewportSize;
+    if (!sizeChanged && _hasInitializedView) {
+      return;
+    }
+
+    if (!_hasInitializedView || !_hasCustomizedViewport) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _viewportSize.isEmpty) {
+          return;
+        }
+        _transformationController.value = _buildResetTransform(_viewportSize);
+      });
+    }
+
+    _hasInitializedView = true;
+  }
+
+  void _revealResetControl({bool scheduleCollapse = true}) {
+    _resetCollapseTimer?.cancel();
+
+    if (!_isResetControlExpanded) {
+      setState(() => _isResetControlExpanded = true);
+    }
+
+    if (scheduleCollapse) {
+      _scheduleResetControlCollapse();
+    }
+  }
+
+  void _scheduleResetControlCollapse() {
+    _resetCollapseTimer?.cancel();
+    _resetCollapseTimer = Timer(_resetCollapseDelay, () {
+      if (!mounted || _isPointerNearResetArea || _isResetControlHovered) {
+        return;
+      }
+
+      if (_isResetControlExpanded) {
+        setState(() => _isResetControlExpanded = false);
+      }
+    });
+  }
+
+  void _noteBoardInteraction({bool scheduleCollapse = true}) {
+    _hasCustomizedViewport = true;
+    _revealResetControl(scheduleCollapse: scheduleCollapse);
+  }
+
+  bool _isNearResetArea(Offset localPosition) {
+    if (_viewportSize.isEmpty) {
+      return false;
+    }
+
+    final activeWidth = math.min(240.0, _viewportSize.width * 0.32);
+    return localPosition.dx >= _viewportSize.width - activeWidth &&
+        localPosition.dy <= 100;
+  }
+
+  void _handleBoardHover(PointerHoverEvent event) {
+    final isNearResetArea = _isNearResetArea(event.localPosition);
+    if (isNearResetArea != _isPointerNearResetArea) {
+      setState(() => _isPointerNearResetArea = isNearResetArea);
+    }
+
+    if (isNearResetArea) {
+      _revealResetControl(scheduleCollapse: false);
+    } else if (!_isResetControlHovered) {
+      _scheduleResetControlCollapse();
+    }
+  }
+
   void _handlePointerScroll(PointerScrollEvent event) {
     final currentScale = _currentScale();
     final scrollDelta = event.scrollDelta.dy;
     final zoomFactor = math.exp(-scrollDelta / 240);
     final targetScale = (currentScale * zoomFactor).clamp(
-      ProjectBoard.minScale,
+      _viewportSize.isEmpty
+          ? ProjectBoard.minScaleFloor
+          : _minimumScaleFor(_viewportSize),
       ProjectBoard.maxScale,
     );
     final scaleDelta = targetScale / currentScale;
@@ -229,6 +352,8 @@ class _ProjectBoardState extends State<ProjectBoard>
     if ((scaleDelta - 1).abs() < 0.001) {
       return;
     }
+
+    _noteBoardInteraction();
 
     final focalPoint = event.localPosition;
     final zoomMatrix = Matrix4.identity()
@@ -241,211 +366,262 @@ class _ProjectBoardState extends State<ProjectBoard>
   }
 
   void _resetBoardView() {
-    _transformationController.value = Matrix4.identity();
+    _hasCustomizedViewport = false;
+    _transformationController.value = _buildResetTransform(_viewportSize);
+    _revealResetControl();
   }
 
   @override
   Widget build(BuildContext context) {
-    final viewportChild = Container(
-      key: _boardViewportKey,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFF8FAFF), Color(0xFFF0F5FF), Color(0xFFFDFBF6)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: InteractiveViewer(
-              transformationController: _transformationController,
-              constrained: false,
-              boundaryMargin: const EdgeInsets.all(120),
-              minScale: ProjectBoard.minScale,
-              maxScale: ProjectBoard.maxScale,
-              child: AnimatedBuilder(
-                animation: _idleController,
-                builder: (context, child) {
-                  return SizedBox(
-                    width: widget.boardWidth,
-                    height: widget.boardHeight,
-                    child: Stack(
-                      children: [
-                        _BoardBackdrop(
-                          boardWidth: widget.boardWidth,
-                          boardHeight: widget.boardHeight,
-                        ),
-                        Positioned(
-                          left: 40,
-                          top: 32,
-                          child: _BoardZoneLabel(title: 'Now'),
-                        ),
-                        Positioned(
-                          left: widget.boardWidth - 144,
-                          top: 32,
-                          child: const _BoardZoneLabel(title: 'Soon'),
-                        ),
-                        Positioned(
-                          left: 40,
-                          top: widget.boardHeight - 92,
-                          child: const _BoardZoneLabel(title: 'Ideas'),
-                        ),
-                        Positioned(
-                          left: widget.boardWidth - 164,
-                          top: widget.boardHeight - 92,
-                          child: const _BoardZoneLabel(title: 'Paused'),
-                        ),
-                        ..._orderedBoardProjects.map((boardProject) {
-                          final isHovered =
-                              _hoveredProjectId == boardProject.id;
-                          final isPressed =
-                              _pressedProjectId == boardProject.id;
-                          final isDragging =
-                              _draggingProjectId == boardProject.id;
-                          final idleOffset = _idleOffsetFor(boardProject);
-                          final displayPosition =
-                              boardProject.boardPosition + idleOffset;
+    final viewportChild = LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+        _syncViewport(viewportSize);
+        final minScale = _minimumScaleFor(viewportSize);
 
-                          return AnimatedPositioned(
-                            key: ValueKey(boardProject.id),
-                            duration: isDragging
-                                ? Duration.zero
-                                : const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            left: displayPosition.dx,
-                            top: displayPosition.dy,
-                            child: MouseRegion(
-                              cursor: widget.onProjectTap == null
-                                  ? SystemMouseCursors.grab
-                                  : SystemMouseCursors.click,
-                              onEnter: (_) {
-                                _soundPlayer.playProjectHover();
-                                setState(
-                                  () => _hoveredProjectId = boardProject.id,
-                                );
-                              },
-                              onExit: (_) {
-                                if (_hoveredProjectId == boardProject.id) {
-                                  setState(() => _hoveredProjectId = null);
-                                }
-                              },
-                              child: GestureDetector(
-                                onTapDown: (_) {
-                                  _bringProjectToFront(boardProject.id);
-                                  setState(
-                                    () => _pressedProjectId = boardProject.id,
-                                  );
-                                },
-                                onTapCancel: () =>
-                                    _clearPressed(boardProject.id),
-                                onTapUp: (_) => _clearPressed(boardProject.id),
-                                onTap: () {
-                                  _bringProjectToFront(boardProject.id);
-                                  widget.onProjectTap?.call(boardProject.id);
-                                },
-                                onPanStart: (details) {
-                                  final scenePosition = _scenePositionForGlobal(
-                                    details.globalPosition,
-                                  );
-                                  final currentPosition = _currentBoardPosition(
-                                    boardProject,
-                                  );
+        return Container(
+          key: _boardViewportKey,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF8FAFF), Color(0xFFF0F5FF), Color(0xFFFDFBF6)],
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  constrained: false,
+                  boundaryMargin: const EdgeInsets.all(320),
+                  minScale: minScale,
+                  maxScale: ProjectBoard.maxScale,
+                  onInteractionStart: (_) =>
+                      _noteBoardInteraction(scheduleCollapse: false),
+                  onInteractionUpdate: (_) =>
+                      _noteBoardInteraction(scheduleCollapse: false),
+                  onInteractionEnd: (_) => _scheduleResetControlCollapse(),
+                  child: AnimatedBuilder(
+                    animation: _idleController,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: widget.boardWidth,
+                        height: widget.boardHeight,
+                        child: Stack(
+                          children: [
+                            _BoardBackdrop(
+                              boardWidth: widget.boardWidth,
+                              boardHeight: widget.boardHeight,
+                            ),
+                            Positioned(
+                              left: 40,
+                              top: 32,
+                              child: const _BoardZoneLabel(title: 'Now'),
+                            ),
+                            Positioned(
+                              left: widget.boardWidth - 144,
+                              top: 32,
+                              child: const _BoardZoneLabel(title: 'Soon'),
+                            ),
+                            Positioned(
+                              left: 40,
+                              top: widget.boardHeight - 92,
+                              child: const _BoardZoneLabel(title: 'Ideas'),
+                            ),
+                            Positioned(
+                              left: widget.boardWidth - 164,
+                              top: widget.boardHeight - 92,
+                              child: const _BoardZoneLabel(title: 'Paused'),
+                            ),
+                            ..._orderedBoardProjects.map((boardProject) {
+                              final isHovered =
+                                  _hoveredProjectId == boardProject.id;
+                              final isPressed =
+                                  _pressedProjectId == boardProject.id;
+                              final isDragging =
+                                  _draggingProjectId == boardProject.id;
+                              final idleOffset = _idleOffsetFor(boardProject);
+                              final displayPosition =
+                                  boardProject.boardPosition + idleOffset;
 
-                                  _bringProjectToFront(boardProject.id);
-                                  setState(() {
-                                    _draggingProjectId = boardProject.id;
-                                    _pressedProjectId = null;
-                                    _dragGrabOffset = scenePosition == null
-                                        ? Offset.zero
-                                        : scenePosition - currentPosition;
-                                  });
-                                },
-                                onPanUpdate: (details) {
-                                  final scenePosition = _scenePositionForGlobal(
-                                    details.globalPosition,
-                                  );
-                                  final grabOffset = _dragGrabOffset;
-                                  if (scenePosition == null ||
-                                      grabOffset == null) {
-                                    return;
-                                  }
+                              return AnimatedPositioned(
+                                key: ValueKey(boardProject.id),
+                                duration: isDragging
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                left: displayPosition.dx,
+                                top: displayPosition.dy,
+                                child: MouseRegion(
+                                  cursor: widget.onProjectTap == null
+                                      ? SystemMouseCursors.grab
+                                      : SystemMouseCursors.click,
+                                  onEnter: (_) {
+                                    _soundPlayer.playProjectHover();
+                                    setState(
+                                      () => _hoveredProjectId = boardProject.id,
+                                    );
+                                  },
+                                  onExit: (_) {
+                                    if (_hoveredProjectId == boardProject.id) {
+                                      setState(() => _hoveredProjectId = null);
+                                    }
+                                  },
+                                  child: GestureDetector(
+                                    onTapDown: (_) {
+                                      _noteBoardInteraction();
+                                      _bringProjectToFront(boardProject.id);
+                                      setState(
+                                        () =>
+                                            _pressedProjectId = boardProject.id,
+                                      );
+                                    },
+                                    onTapCancel: () =>
+                                        _clearPressed(boardProject.id),
+                                    onTapUp: (_) =>
+                                        _clearPressed(boardProject.id),
+                                    onTap: () {
+                                      _noteBoardInteraction();
+                                      _bringProjectToFront(boardProject.id);
+                                      widget.onProjectTap?.call(boardProject.id);
+                                    },
+                                    onPanStart: (details) {
+                                      final scenePosition =
+                                          _scenePositionForGlobal(
+                                            details.globalPosition,
+                                          );
+                                      final currentPosition =
+                                          _currentBoardPosition(boardProject);
 
-                                  final nextPosition =
-                                      scenePosition - grabOffset;
+                                      _noteBoardInteraction(
+                                        scheduleCollapse: false,
+                                      );
+                                      _bringProjectToFront(boardProject.id);
+                                      setState(() {
+                                        _draggingProjectId = boardProject.id;
+                                        _pressedProjectId = null;
+                                        _dragGrabOffset = scenePosition == null
+                                            ? Offset.zero
+                                            : scenePosition - currentPosition;
+                                      });
+                                    },
+                                    onPanUpdate: (details) {
+                                      final scenePosition =
+                                          _scenePositionForGlobal(
+                                            details.globalPosition,
+                                          );
+                                      final grabOffset = _dragGrabOffset;
+                                      if (scenePosition == null ||
+                                          grabOffset == null) {
+                                        return;
+                                      }
 
-                                  widget.onProjectDragged(
-                                    boardProject.id,
-                                    Offset(
-                                      nextPosition.dx.clamp(0, _maxCardX),
-                                      nextPosition.dy.clamp(0, _maxCardY),
+                                      _noteBoardInteraction(
+                                        scheduleCollapse: false,
+                                      );
+                                      final nextPosition =
+                                          scenePosition - grabOffset;
+
+                                      widget.onProjectDragged(
+                                        boardProject.id,
+                                        Offset(
+                                          nextPosition.dx.clamp(0, _maxCardX),
+                                          nextPosition.dy.clamp(0, _maxCardY),
+                                        ),
+                                      );
+                                    },
+                                    onPanEnd: (_) {
+                                      widget.onProjectDragEnded?.call(
+                                        boardProject.id,
+                                      );
+                                      _scheduleResetControlCollapse();
+                                      setState(() {
+                                        _draggingProjectId = null;
+                                        _dragGrabOffset = null;
+                                      });
+                                    },
+                                    onPanCancel: () {
+                                      _scheduleResetControlCollapse();
+                                      setState(() {
+                                        _draggingProjectId = null;
+                                        _dragGrabOffset = null;
+                                      });
+                                    },
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: ProjectBoardCard(
+                                        boardProject: boardProject,
+                                        isHovered: isHovered,
+                                        isPressed: isPressed,
+                                        isDragging: isDragging,
+                                        width: widget.cardWidth,
+                                        height: widget.cardHeight,
+                                        briefMaxLines: 2,
+                                      ),
                                     ),
-                                  );
-                                },
-                                onPanEnd: (_) {
-                                  widget.onProjectDragEnded?.call(
-                                    boardProject.id,
-                                  );
-                                  setState(() {
-                                    _draggingProjectId = null;
-                                    _dragGrabOffset = null;
-                                  });
-                                },
-                                onPanCancel: () {
-                                  setState(() {
-                                    _draggingProjectId = null;
-                                    _dragGrabOffset = null;
-                                  });
-                                },
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: ProjectBoardCard(
-                                    boardProject: boardProject,
-                                    isHovered: isHovered,
-                                    isPressed: isPressed,
-                                    isDragging: isDragging,
-                                    width: widget.cardWidth,
-                                    height: widget.cardHeight,
-                                    briefMaxLines: 2,
                                   ),
                                 ),
+                              );
+                            }),
+                            Positioned(
+                              left: _newProjectCardPosition.dx,
+                              top: _newProjectCardPosition.dy,
+                              child: _NewProjectBoardCard(
+                                onTap: widget.onAddProjectTap,
+                                onHoverEnter: _soundPlayer.playNewProjectHover,
                               ),
                             ),
-                          );
-                        }),
-                        Positioned(
-                          left: _newProjectCardPosition.dx,
-                          top: _newProjectCardPosition.dy,
-                          child: _NewProjectBoardCard(
-                            onTap: widget.onAddProjectTap,
-                            onHoverEnter: _soundPlayer.playNewProjectHover,
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
+              Positioned(
+                top: 14,
+                right: 14,
+                child: _ResetBoardViewControl(
+                  expanded:
+                      _isResetControlExpanded ||
+                      _isPointerNearResetArea ||
+                      _isResetControlHovered,
+                  onPressed: _resetBoardView,
+                  onHoverChanged: (isHovered) {
+                    if (_isResetControlHovered == isHovered) {
+                      return;
+                    }
+
+                    setState(() => _isResetControlHovered = isHovered);
+                    if (isHovered) {
+                      _revealResetControl(scheduleCollapse: false);
+                    } else if (!_isPointerNearResetArea) {
+                      _scheduleResetControlCollapse();
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
-          Positioned(
-            top: 14,
-            right: 14,
-            child: FilledButton.tonalIcon(
-              onPressed: _resetBoardView,
-              icon: const Icon(Icons.center_focus_strong),
-              label: const Text('Reset view'),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: MouseRegion(
         onEnter: (_) => setState(() => _isPointerOverBoard = true),
-        onExit: (_) => setState(() => _isPointerOverBoard = false),
+        onHover: _handleBoardHover,
+        onExit: (_) {
+          setState(() {
+            _isPointerOverBoard = false;
+            _isPointerNearResetArea = false;
+          });
+          if (!_isResetControlHovered) {
+            _scheduleResetControlCollapse();
+          }
+        },
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerSignal: (event) {
@@ -467,6 +643,114 @@ class _ProjectBoardState extends State<ProjectBoard>
                       ProjectBoard.defaultViewportHeight,
                   child: viewportChild,
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResetBoardViewControl extends StatelessWidget {
+  const _ResetBoardViewControl({
+    required this.expanded,
+    required this.onPressed,
+    required this.onHoverChanged,
+  });
+
+  final bool expanded;
+  final VoidCallback onPressed;
+  final ValueChanged<bool> onHoverChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => onHoverChanged(true),
+      onExit: (_) => onHoverChanged(false),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        opacity: expanded ? 1 : 0.82,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          scale: expanded ? 1 : 0.96,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            width: expanded ? 152 : 52,
+            height: 48,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onPressed,
+                borderRadius: BorderRadius.circular(999),
+                child: GlassSurface(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: expanded ? 12 : 8,
+                    vertical: 8,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                  blurSigma: 16,
+                  tintColor: const Color(0xFFF7FAFF),
+                  tintOpacity: expanded ? 0.64 : 0.5,
+                  borderOpacity: 0.52,
+                  highlightOpacity: 0.3,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7085B8).withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                  child: Row(
+                    mainAxisAlignment: expanded
+                        ? MainAxisAlignment.start
+                        : MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.center_focus_strong_rounded,
+                        size: 18,
+                        color: Color(0xFF42567D),
+                      ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeOutCubic,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SizeTransition(
+                              sizeFactor: animation,
+                              axis: Axis.horizontal,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: expanded
+                            ? Padding(
+                                key: const ValueKey('reset-label'),
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Text(
+                                  'Reset view',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF42567D),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox(
+                                key: ValueKey('reset-empty'),
+                                width: 0,
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -500,7 +784,7 @@ class _BoardBackdrop extends StatelessWidget {
           top: boardHeight * 0.18,
           child: _GlowOrb(
             size: 220,
-            color: const Color(0xFFFFE5B8).withValues(alpha: 0.40),
+            color: const Color(0xFFFFE5B8).withValues(alpha: 0.4),
           ),
         ),
         Positioned(
@@ -569,9 +853,23 @@ class _BoardZonePanel extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.58),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.2),
+            color.withValues(alpha: 0.56),
+          ],
+        ),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.78)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8090C2).withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
     );
   }
@@ -628,35 +926,31 @@ class _NewProjectBoardCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
-        child: Container(
-          width: 196,
-          height: 144,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFD9DFEE)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8090C2).withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add_circle_outline, size: 30),
-              const SizedBox(height: 8),
-              Text(
-                'New Project',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              const Text('Drop in a fresh idea.'),
-            ],
+        child: GlassSurface(
+          padding: const EdgeInsets.all(14),
+          borderRadius: BorderRadius.circular(22),
+          blurSigma: 16,
+          tintColor: const Color(0xFFF9FBFF),
+          tintOpacity: 0.72,
+          borderOpacity: 0.5,
+          child: SizedBox(
+            width: 196,
+            height: 144,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add_circle_outline, size: 30),
+                const SizedBox(height: 8),
+                Text(
+                  'New Project',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                const Text('Drop in a fresh idea.'),
+              ],
+            ),
           ),
         ),
       ),
@@ -671,13 +965,14 @@ class _BoardZoneLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD9DFEE)),
-      ),
+      borderRadius: BorderRadius.circular(999),
+      blurSigma: 10,
+      tintColor: const Color(0xFFF8FBFF),
+      tintOpacity: 0.6,
+      borderOpacity: 0.5,
+      boxShadow: const [],
       child: Text(
         title,
         style: Theme.of(

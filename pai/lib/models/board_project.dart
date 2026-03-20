@@ -4,7 +4,7 @@ class BoardProject {
   final String id;
   final String title;
   final String brief;
-  final String category;
+  final List<String> tags;
   final String status;
   final double progress;
   final Offset boardPosition;
@@ -13,7 +13,7 @@ class BoardProject {
     required this.id,
     required this.title,
     required this.brief,
-    required this.category,
+    required this.tags,
     required this.status,
     required this.progress,
     required this.boardPosition,
@@ -23,7 +23,7 @@ class BoardProject {
     String? id,
     String? title,
     String? brief,
-    String? category,
+    List<String>? tags,
     String? status,
     double? progress,
     Offset? boardPosition,
@@ -32,7 +32,7 @@ class BoardProject {
       id: id ?? this.id,
       title: title ?? this.title,
       brief: brief ?? this.brief,
-      category: category ?? this.category,
+      tags: tags ?? this.tags,
       status: status ?? this.status,
       progress: progress ?? this.progress,
       boardPosition: boardPosition ?? this.boardPosition,

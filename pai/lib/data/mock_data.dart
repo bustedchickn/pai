@@ -11,6 +11,7 @@ const statusPaAiProject = Project(
   status: 'active',
   brief:
       'MVP is defined. Focus on project CRUD, session recaps, reminders, and later AI summaries.',
+  tags: ['Coding', 'Flutter', 'MVP'],
   nextSteps: [
     'Set up local models',
     'Build project detail screen',
@@ -51,6 +52,7 @@ const eventOpsProject = Project(
   title: 'Event Ops App',
   status: 'active',
   brief: 'Navigation and organization-level polish are the current focus.',
+  tags: ['Work', 'Operations', 'Web'],
   nextSteps: ['Refine nav flow', 'Polish event pages'],
   blockers: [],
   sessions: [
@@ -76,6 +78,7 @@ const practiceAppProject = Project(
   status: 'paused',
   brief:
       'Idea is still interesting, but the feature list needs to be reduced before moving forward.',
+  tags: ['Creative', 'Music', 'Mobile'],
   nextSteps: ['Clarify the smallest useful version'],
   blockers: ['Scope is too broad right now'],
   sessions: [],
@@ -90,7 +93,7 @@ const mockBoardProjects = [
     title: 'pai',
     brief:
         'MVP is defined. Focus on project CRUD, session recaps, reminders, and later AI summaries.',
-    category: 'Coding',
+    tags: ['Coding', 'Flutter', 'MVP'],
     status: 'active',
     progress: 0.35,
     boardPosition: Offset(80, 120),
@@ -99,7 +102,7 @@ const mockBoardProjects = [
     id: '2',
     title: 'Event Ops App',
     brief: 'Navigation and organization-level polish are the current focus.',
-    category: 'Work',
+    tags: ['Work', 'Operations', 'Web'],
     status: 'active',
     progress: 0.70,
     boardPosition: Offset(430, 220),
@@ -109,7 +112,7 @@ const mockBoardProjects = [
     title: 'Practice App',
     brief:
         'Idea is still interesting, but the feature list needs to be reduced before moving forward.',
-    category: 'Music',
+    tags: ['Creative', 'Music', 'Mobile'],
     status: 'paused',
     progress: 0.20,
     boardPosition: Offset(220, 470),
