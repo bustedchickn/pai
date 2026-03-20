@@ -10,7 +10,8 @@ class ProjectBoardCard extends StatelessWidget {
     this.isHovered = false,
     this.isPressed = false,
     this.isDragging = false,
-    this.width = 248,
+    this.width = 220,
+    this.height = 196,
     this.briefMaxLines = 2,
   });
 
@@ -19,6 +20,7 @@ class ProjectBoardCard extends StatelessWidget {
   final bool isPressed;
   final bool isDragging;
   final double? width;
+  final double? height;
   final int briefMaxLines;
 
   @override
@@ -63,6 +65,7 @@ class ProjectBoardCard extends StatelessWidget {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           width: width,
+          height: height,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
@@ -76,7 +79,7 @@ class ProjectBoardCard extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -88,40 +91,53 @@ class ProjectBoardCard extends StatelessWidget {
                         boardProject.title,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     StatusChip(status: boardProject.status),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   boardProject.brief,
                   maxLines: briefMaxLines,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF53627F),
+                    height: 1.3,
+                  ),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  'Progress',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                const Spacer(),
+                Row(
+                  children: [
+                    Text(
+                      'Progress',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${(boardProject.progress * 100).round()}%',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: const Color(0xFF5E6B8A),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
                     value: boardProject.progress,
-                    minHeight: 8,
+                    minHeight: 6,
                     backgroundColor: const Color(0xFFE7E9F4),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${(boardProject.progress * 100).round()}% complete',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,

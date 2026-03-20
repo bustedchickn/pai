@@ -9,19 +9,20 @@ class BoardHoverSoundPlayer {
     _hoverPlayer.audioCache = _audioCache;
   }
 
+  static const String _assetPrefix = 'lib/sfx/';
   static const Duration _hoverCooldown = Duration(milliseconds: 260);
   static const double _hoverVolume = 0.5;
   static const Duration _fadeOutDuration = Duration(milliseconds: 150);
   static const int _fadeOutSteps = 4;
   static const List<String> _selectAssets = [
-    'lib/sfx/select0.mp3',
-    'lib/sfx/select1.mp3',
-    'lib/sfx/select2.mp3',
+    'select0.mp3',
+    'select1.mp3',
+    'select2.mp3',
   ];
-  static const String _newProjectAsset = 'lib/sfx/new project.mp3';
+  static const String _newProjectAsset = 'new project.mp3';
 
   final Random _random = Random();
-  final AudioCache _audioCache = AudioCache(prefix: '');
+  final AudioCache _audioCache = AudioCache(prefix: _assetPrefix);
   final AudioPlayer _hoverPlayer = AudioPlayer();
 
   bool _enabled;
@@ -42,7 +43,14 @@ class BoardHoverSoundPlayer {
     await _playHoverAsset(_newProjectAsset);
   }
 
-  Future<void> warmUp() => _ensureInitialized();
+  Future<void> warmUp() async {
+    try {
+      await _ensureInitialized();
+    } catch (error, stackTrace) {
+      debugPrint('Board hover audio warm-up failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
 
   Future<void> dispose() async {
     _cancelFadeOut();
@@ -54,8 +62,15 @@ class BoardHoverSoundPlayer {
       return;
     }
 
-    _initializeFuture ??= _initialize();
-    await _initializeFuture;
+    final initializeFuture = _initializeFuture ??= _initialize();
+    try {
+      await initializeFuture;
+    } catch (_) {
+      if (identical(_initializeFuture, initializeFuture)) {
+        _initializeFuture = null;
+      }
+      rethrow;
+    }
   }
 
   Future<void> _initialize() async {
@@ -69,7 +84,7 @@ class BoardHoverSoundPlayer {
     _initialized = true;
   }
 
-  Future<void> _playHoverAsset(String assetPath) async {
+  Future<void> _playHoverAsset(String assetName) async {
     if (!_enabled) {
       return;
     }
@@ -80,22 +95,23 @@ class BoardHoverSoundPlayer {
       return;
     }
 
-    _lastPlayedAt = now;
-
     try {
       await _ensureInitialized();
       _cancelFadeOut();
       await _hoverPlayer.stop();
+      _lastPlayedAt = now;
       await _hoverPlayer.setVolume(_hoverVolume);
       await _hoverPlayer.play(
-        AssetSource(assetPath),
+        AssetSource(assetName),
         volume: _hoverVolume,
         mode: PlayerMode.mediaPlayer,
       );
       await _hoverPlayer.setVolume(_hoverVolume);
       await _scheduleFadeOut();
     } catch (error, stackTrace) {
-      debugPrint('Board hover audio failed for $assetPath: $error');
+      debugPrint(
+        'Board hover audio failed for $_assetPrefix$assetName: $error',
+      );
       debugPrintStack(stackTrace: stackTrace);
     }
   }

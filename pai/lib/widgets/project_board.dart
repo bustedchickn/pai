@@ -43,13 +43,13 @@ class ProjectBoard extends StatefulWidget {
   final double cardHeight;
   final Offset? newProjectCardPosition;
 
-  static const double defaultBoardWidth = 1800;
-  static const double defaultBoardHeight = 1260;
-  static const double defaultViewportHeight = 720;
-  static const double defaultCardWidth = 248;
-  static const double defaultCardHeight = 206;
-  static const double minScale = 0.72;
-  static const double maxScale = 2.4;
+  static const double defaultBoardWidth = 2500;
+  static const double defaultBoardHeight = 1600;
+  static const double defaultViewportHeight = 760;
+  static const double defaultCardWidth = 220;
+  static const double defaultCardHeight = 196;
+  static const double minScale = 0.64;
+  static const double maxScale = 2.6;
 
   @override
   State<ProjectBoard> createState() => _ProjectBoardState();
@@ -203,7 +203,7 @@ class _ProjectBoardState extends State<ProjectBoard>
 
   Offset get _newProjectCardPosition =>
       widget.newProjectCardPosition ??
-      Offset(widget.boardWidth - 296, widget.boardHeight - 232);
+      Offset(widget.boardWidth - 252, widget.boardHeight - 206);
 
   Offset? _scenePositionForGlobal(Offset globalPosition) {
     final renderObject =
@@ -405,6 +405,7 @@ class _ProjectBoardState extends State<ProjectBoard>
                                     isPressed: isPressed,
                                     isDragging: isDragging,
                                     width: widget.cardWidth,
+                                    height: widget.cardHeight,
                                     briefMaxLines: 2,
                                   ),
                                 ),
@@ -628,8 +629,8 @@ class _NewProjectBoardCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          width: 208,
-          height: 156,
+          width: 196,
+          height: 144,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
@@ -645,16 +646,16 @@ class _NewProjectBoardCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add_circle_outline, size: 34),
-              const SizedBox(height: 10),
+              const Icon(Icons.add_circle_outline, size: 30),
+              const SizedBox(height: 8),
               Text(
                 'New Project',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 6),
-              const Text('Drop a fresh idea into the board.'),
+              const SizedBox(height: 4),
+              const Text('Drop in a fresh idea.'),
             ],
           ),
         ),

@@ -6,10 +6,10 @@ void main() {
   testWidgets('app shell renders dashboard content', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const StatusPaAiApp());
+    await tester.pumpWidget(const PaiApp());
 
     expect(find.text('pai'), findsWidgets);
-    expect(find.text('Project workspace'), findsOneWidget);
+    expect(find.text('workspace'), findsOneWidget);
     expect(find.text('Projects'), findsOneWidget);
   });
 }
