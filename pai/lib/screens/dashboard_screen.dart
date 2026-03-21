@@ -322,13 +322,9 @@ class _DashboardTopBar extends StatelessWidget {
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        const _BrandBadge(),
-                        const Spacer(),
-                        actions,
-                      ],
-                    ),
+                    const _BrandBadge(),
+                    const SizedBox(height: 12),
+                    actions,
                     const SizedBox(height: 12),
                     searchField,
                   ],

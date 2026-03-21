@@ -712,38 +712,42 @@ class _ResetBoardViewControl extends StatelessWidget {
                         size: 18,
                         color: Color(0xFF42567D),
                       ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeOutCubic,
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SizeTransition(
-                              sizeFactor: animation,
-                              axis: Axis.horizontal,
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: expanded
-                            ? Padding(
-                                key: const ValueKey('reset-label'),
-                                padding: const EdgeInsets.only(left: 8),
-                                child: Text(
-                                  'Reset view',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.labelLarge?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF42567D),
-                                  ),
-                                ),
-                              )
-                            : const SizedBox(
-                                key: ValueKey('reset-empty'),
-                                width: 0,
+                      Flexible(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeOutCubic,
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SizeTransition(
+                                sizeFactor: animation,
+                                axis: Axis.horizontal,
+                                child: child,
                               ),
+                            );
+                          },
+                          child: expanded
+                              ? Padding(
+                                  key: const ValueKey('reset-label'),
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: Text(
+                                    'Reset view',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.labelLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF42567D),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox(
+                                  key: ValueKey('reset-empty'),
+                                  width: 0,
+                                ),
+                        ),
                       ),
                     ],
                   ),

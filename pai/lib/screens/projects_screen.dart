@@ -312,7 +312,7 @@ class _ProjectsSidebar extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        _TagWrap(tags: project.tags),
+                        _TagWrap(tags: project.tags, compact: true),
                       ],
                     ),
                   ),
@@ -600,21 +600,41 @@ class _NextStepTile extends StatelessWidget {
 }
 
 class _TagWrap extends StatelessWidget {
-  const _TagWrap({required this.tags});
+  const _TagWrap({required this.tags, this.compact = false});
 
   final List<String> tags;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final chipSpacing = compact ? 4.0 : 8.0;
+    final labelStyle = compact
+        ? Theme.of(context).textTheme.labelSmall?.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            height: 1,
+            color: const Color(0xFF56647D),
+          )
+        : null;
+
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: chipSpacing,
+      runSpacing: chipSpacing,
       children: [
         for (final tag in tags)
           Chip(
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
-            avatar: const Icon(Icons.sell_outlined, size: 16),
+            visualDensity: compact
+                ? const VisualDensity(horizontal: -4, vertical: -4)
+                : const VisualDensity(horizontal: -2, vertical: -2),
+            padding: EdgeInsets.zero,
+            labelPadding: EdgeInsets.symmetric(horizontal: compact ? 4 : 8),
+            avatar: Icon(
+              Icons.sell_outlined,
+              size: compact ? 10 : 16,
+              color: const Color(0xFF66758F),
+            ),
+            labelStyle: labelStyle,
             label: Text(tag),
           ),
       ],

@@ -25,8 +25,25 @@ class ProjectBoardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleTags = boardProject.tags.take(2).toList();
+    final isCompactCard = (width ?? 220) <= 220 || (height ?? 196) <= 196;
+    final visibleTags = boardProject.tags.take(isCompactCard ? 1 : 2).toList();
     final remainingTagCount = boardProject.tags.length - visibleTags.length;
+    final contentPadding = isCompactCard ? 12.0 : 14.0;
+    final titleStyle = isCompactCard
+        ? Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)
+        : Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700);
+    final briefLines = isCompactCard ? 1 : briefMaxLines;
+    final tagIconSize = isCompactCard ? 12.0 : 16.0;
+    final tagLabelStyle = isCompactCard
+        ? Theme.of(context).textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            height: 1,
+          )
+        : null;
     final scale = isPressed
         ? 0.992
         : isDragging
@@ -81,7 +98,7 @@ class ProjectBoardCard extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(contentPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -91,8 +108,7 @@ class ProjectBoardCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         boardProject.title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: titleStyle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -102,21 +118,23 @@ class ProjectBoardCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  boardProject.brief,
-                  maxLines: briefMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF53627F),
-                    height: 1.3,
+                Flexible(
+                  child: Text(
+                    boardProject.brief,
+                    maxLines: briefLines,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF53627F),
+                      height: 1.3,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                SizedBox(height: isCompactCard ? 8 : 10),
                 Row(
                   children: [
                     Text(
                       'Progress',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -135,14 +153,14 @@ class ProjectBoardCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
                     value: boardProject.progress,
-                    minHeight: 6,
+                    minHeight: isCompactCard ? 5 : 6,
                     backgroundColor: const Color(0xFFE7E9F4),
                   ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: isCompactCard ? 8 : 10),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: isCompactCard ? 6 : 8,
+                  runSpacing: isCompactCard ? 6 : 8,
                   children: [
                     for (final tag in visibleTags)
                       Chip(
@@ -151,8 +169,16 @@ class ProjectBoardCard extends StatelessWidget {
                           vertical: -2,
                         ),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        labelPadding: EdgeInsets.symmetric(
+                          horizontal: isCompactCard ? 6 : 8,
+                        ),
+                        labelStyle: tagLabelStyle,
                         label: Text(tag),
-                        avatar: const Icon(Icons.sell_outlined, size: 16),
+                        avatar: Icon(
+                          Icons.sell_outlined,
+                          size: tagIconSize,
+                        ),
                       ),
                     if (remainingTagCount > 0)
                       Chip(
@@ -161,6 +187,11 @@ class ProjectBoardCard extends StatelessWidget {
                           vertical: -2,
                         ),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        labelPadding: EdgeInsets.symmetric(
+                          horizontal: isCompactCard ? 6 : 8,
+                        ),
+                        labelStyle: tagLabelStyle,
                         label: Text('+$remainingTagCount'),
                       ),
                   ],
