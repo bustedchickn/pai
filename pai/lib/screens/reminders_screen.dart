@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../models/project.dart';
 
 class RemindersScreen extends StatelessWidget {
-  const RemindersScreen({super.key});
+  const RemindersScreen({super.key, required this.projects});
+
+  final List<Project> projects;
 
   @override
   Widget build(BuildContext context) {
-    final reminders = mockProjects
-        .expand((project) => project.reminders)
-        .toList();
+    final reminders = projects.expand((project) => project.reminders).toList();
 
     return SafeArea(
       child: Padding(

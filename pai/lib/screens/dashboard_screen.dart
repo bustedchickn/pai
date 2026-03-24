@@ -24,7 +24,7 @@ class DashboardScreen extends StatefulWidget {
   final ValueChanged<String> onProjectOpen;
   final void Function(String projectId, Offset nextPosition) onProjectMoved;
   final ValueChanged<String> onProjectMoveEnded;
-  final ValueChanged<NewProjectDraft> onProjectCreated;
+  final Future<void> Function(NewProjectDraft draft) onProjectCreated;
   final VoidCallback onOpenSettings;
 
   @override
@@ -52,7 +52,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    widget.onProjectCreated(draft);
+    await widget.onProjectCreated(draft);
+    if (!context.mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('${draft.title} was added to pai.')));
@@ -513,9 +517,9 @@ class _WorkspaceHeader extends StatelessWidget {
               subtitle,
               maxLines: isCompact ? 3 : 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF586783),
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF586783)),
             ),
           ],
         );
@@ -655,9 +659,7 @@ class _StatusPill extends StatelessWidget {
               decoration: BoxDecoration(
                 color: metric.tone.withValues(alpha: 0.13),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.45),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
               ),
               child: Icon(metric.icon, size: 16, color: metric.tone),
             ),
@@ -668,9 +670,9 @@ class _StatusPill extends StatelessWidget {
               children: [
                 Text(
                   metric.value,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 Text(
                   metric.label,

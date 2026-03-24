@@ -1,12 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import 'data/mock_data.dart';
+import 'data/in_memory/in_memory_document_repository.dart';
+import 'data/in_memory/in_memory_pai_store.dart';
+import 'data/in_memory/in_memory_project_repository.dart';
+import 'data/in_memory/in_memory_session_repository.dart';
+import 'data/in_memory/in_memory_task_repository.dart';
+import 'models/app_data_snapshot.dart';
 import 'models/board_project.dart';
+import 'models/document_bookmark.dart';
 import 'models/new_project_draft.dart';
 import 'models/project.dart';
+import 'models/project_document.dart';
+import 'models/session_note.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
+import 'screens/reminders_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/board_position_storage.dart';
+import 'services/pai_data_service.dart';
 import 'widgets/project_board.dart';
 
 void main() {
@@ -42,35 +55,71 @@ class _AppShellState extends State<AppShell> {
   int selectedIndex = 0;
 
   final BoardPositionStorage _boardPositionStorage = BoardPositionStorage();
+  late final PaiDataService _dataService;
 
-  late List<Project> projects;
-  late List<BoardProject> boardProjects;
+  List<Project> projects = const [];
+  List<BoardProject> boardProjects = const [];
+  List<ProjectDocument> documents = const [];
+  List<DocumentBookmark> bookmarks = const [];
+  bool _isLoading = true;
+  String? _loadError;
   String? selectedProjectId;
   int projectSelectionRequestId = 0;
 
   @override
   void initState() {
     super.initState();
-    projects = List<Project>.from(mockProjects);
-    boardProjects = List<BoardProject>.from(mockBoardProjects);
-    _restoreBoardPositions();
+    final store = InMemoryPaiStore();
+    _dataService = PaiDataService(
+      projectRepository: InMemoryProjectRepository(store),
+      taskRepository: InMemoryTaskRepository(store),
+      sessionRepository: InMemorySessionRepository(store),
+      documentRepository: InMemoryDocumentRepository(store),
+    );
+    unawaited(_initializeData());
   }
 
-  Future<void> _restoreBoardPositions() async {
-    final storedPositions = await _boardPositionStorage.loadPositions();
-    if (!mounted || storedPositions.isEmpty) {
-      return;
-    }
+  Future<void> _initializeData() async {
+    try {
+      var snapshot = await _dataService.load();
+      final storedPositions = await _boardPositionStorage.loadPositions();
+      if (storedPositions.isNotEmpty) {
+        final restoredBoardProjects = [
+          for (final boardProject in snapshot.boardProjects)
+            boardProject.copyWith(
+              boardPosition:
+                  storedPositions[boardProject.id] ??
+                  boardProject.boardPosition,
+            ),
+        ];
+        snapshot = await _dataService.saveBoardProjects(restoredBoardProjects);
+      }
 
-    setState(() {
-      boardProjects = [
-        for (final boardProject in boardProjects)
-          boardProject.copyWith(
-            boardPosition:
-                storedPositions[boardProject.id] ?? boardProject.boardPosition,
-          ),
-      ];
-    });
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _applySnapshot(snapshot);
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _loadError = error.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _applySnapshot(AppDataSnapshot snapshot) {
+    projects = snapshot.projects;
+    boardProjects = snapshot.boardProjects;
+    documents = snapshot.documents;
+    bookmarks = snapshot.bookmarks;
   }
 
   void updateBoardProjectPosition(String projectId, Offset nextPosition) {
@@ -82,10 +131,11 @@ class _AppShellState extends State<AppShell> {
               : boardProject,
       ];
     });
+    unawaited(_dataService.updateBoardProjectPosition(projectId, nextPosition));
   }
 
   void persistBoardProjectPositions([String? _]) {
-    _boardPositionStorage.savePositions(boardProjects);
+    unawaited(_boardPositionStorage.savePositions(boardProjects));
   }
 
   Offset _defaultBoardPosition() {
@@ -127,37 +177,16 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  void createProject(NewProjectDraft draft) {
-    final projectId = DateTime.now().microsecondsSinceEpoch.toString();
-    final boardPosition = _defaultBoardPosition();
-
-    final project = Project(
-      id: projectId,
-      title: draft.title,
-      status: draft.status,
-      brief: draft.brief,
-      tags: draft.tags,
-      nextSteps: const [],
-      blockers: const [],
-      sessions: const [],
-      reminders: const [],
+  Future<void> createProject(NewProjectDraft draft) async {
+    final snapshot = await _dataService.createProject(
+      draft: draft,
+      boardPosition: _defaultBoardPosition(),
     );
+    if (!mounted) {
+      return;
+    }
 
-    final boardProject = BoardProject(
-      id: projectId,
-      title: draft.title,
-      brief: draft.brief,
-      tags: draft.tags,
-      status: draft.status,
-      progress: draft.progress,
-      boardPosition: boardPosition,
-    );
-
-    setState(() {
-      projects = [...projects, project];
-      boardProjects = [...boardProjects, boardProject];
-    });
-
+    setState(() => _applySnapshot(snapshot));
     persistBoardProjectPositions();
   }
 
@@ -173,13 +202,77 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  void updateProject(Project nextProject) {
-    setState(() {
-      projects = [
-        for (final project in projects)
-          project.id == nextProject.id ? nextProject : project,
-      ];
-    });
+  Future<void> saveSession(String projectId, SessionNote session) async {
+    final snapshot = await _dataService.addSession(projectId, session);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> addTasks(String projectId, List<String> tasks) async {
+    final snapshot = await _dataService.addTasks(projectId, tasks);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> completeTask(
+    String projectId,
+    String task,
+    SessionNote completionNote,
+    String updatedBrief,
+  ) async {
+    final snapshot = await _dataService.completeTask(
+      projectId: projectId,
+      task: task,
+      completionNote: completionNote,
+      updatedBrief: updatedBrief,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> saveDocument(ProjectDocument document) async {
+    final snapshot = await _dataService.saveDocument(document);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> saveProject(Project project) async {
+    final snapshot = await _dataService.updateProject(project);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> saveBookmark(DocumentBookmark bookmark) async {
+    final snapshot = await _dataService.saveBookmark(bookmark);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> deleteDocument(String documentId) async {
+    final snapshot = await _dataService.deleteDocument(documentId);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
   }
 
   Widget _buildAnimatedSection(Widget child) {
@@ -218,6 +311,24 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_loadError != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Could not load app data.\n$_loadError',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
     final pages = [
       DashboardScreen(
         projects: projects,
@@ -230,9 +341,17 @@ class _AppShellState extends State<AppShell> {
       ),
       ProjectsScreen(
         projects: projects,
+        documents: documents,
+        bookmarks: bookmarks,
         selectedProjectId: selectedProjectId,
         selectionRequestId: projectSelectionRequestId,
-        onProjectUpdated: updateProject,
+        onProjectSaved: saveProject,
+        onSessionSaved: saveSession,
+        onTasksAdded: addTasks,
+        onTaskCompleted: completeTask,
+        onDocumentSaved: saveDocument,
+        onBookmarkSaved: saveBookmark,
+        onDocumentDeleted: deleteDocument,
       ),
       RemindersScreen(projects: projects),
       const SettingsScreen(),
@@ -306,95 +425,6 @@ class _AppShellState extends State<AppShell> {
           ),
         );
       },
-    );
-  }
-}
-
-class RemindersScreen extends StatelessWidget {
-  const RemindersScreen({super.key, required this.projects});
-
-  final List<Project> projects;
-
-  @override
-  Widget build(BuildContext context) {
-    final reminders = projects.expand((project) => project.reminders).toList();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ListView(
-          children: [
-            Text(
-              'Reminders',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ...reminders.map(
-              (reminder) => Card(
-                child: ListTile(
-                  leading: const Icon(Icons.alarm_outlined),
-                  title: Text(reminder.title),
-                  subtitle: Text(reminder.projectTitle),
-                  trailing: Text(reminder.dueLabel),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ListView(
-          children: [
-            Text(
-              'Settings',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            const Card(
-              child: ListTile(
-                leading: Icon(Icons.sync_outlined),
-                title: Text('Sync'),
-                subtitle: Text(
-                  'Start with local data first, then connect Firebase later.',
-                ),
-              ),
-            ),
-            const Card(
-              child: ListTile(
-                leading: Icon(Icons.mic_none_outlined),
-                title: Text('Voice notes'),
-                subtitle: Text(
-                  'Enable speech-to-text after the core session flow works.',
-                ),
-              ),
-            ),
-            const Card(
-              child: ListTile(
-                leading: Icon(Icons.auto_awesome_outlined),
-                title: Text('AI assistant'),
-                subtitle: Text(
-                  'Use simple prompts and summaries now, then add smarter AI later.',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

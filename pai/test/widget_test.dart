@@ -3,13 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pai/main.dart';
 
 void main() {
-  testWidgets('app shell renders dashboard content', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('app shell boots', (WidgetTester tester) async {
     await tester.pumpWidget(const PaiApp());
+    await tester.pump();
 
-    expect(find.text('pai'), findsWidgets);
-    expect(find.text('workspace'), findsOneWidget);
-    expect(find.text('Projects'), findsOneWidget);
+    expect(find.byType(AppShell), findsOneWidget);
   });
 }

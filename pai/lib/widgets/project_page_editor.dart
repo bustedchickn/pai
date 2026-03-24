@@ -1,0 +1,1173 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
+
+import '../models/document_bookmark.dart';
+import '../services/document_markdown_shortcuts.dart';
+import '../services/document_selection_wrap.dart';
+import '../services/project_document_content_codec.dart';
+
+typedef BookmarkCreateCallback =
+    Future<void> Function(String label, String anchor, String? note);
+
+enum ProjectPageStorageFormat { richTextJson, markdown }
+
+class ProjectPageEditor extends StatefulWidget {
+  const ProjectPageEditor({
+    super.key,
+    required this.pageId,
+    required this.pageTitle,
+    required this.contentController,
+    required this.contentFocusNode,
+    required this.bookmarks,
+    required this.hasChanges,
+    required this.pageKindLabel,
+    required this.metaLabels,
+    required this.onCreatePage,
+    required this.onPageDraftChanged,
+    required this.onSavePage,
+    required this.onBookmarkCreated,
+    this.storageFormat = ProjectPageStorageFormat.richTextJson,
+    this.onRenamePage,
+    this.onDuplicatePage,
+    this.onDeletePage,
+    this.onTogglePinned,
+    this.isPinned = false,
+  });
+
+  final String pageId;
+  final String pageTitle;
+  final TextEditingController contentController;
+  final FocusNode contentFocusNode;
+  final List<DocumentBookmark> bookmarks;
+  final bool hasChanges;
+  final String pageKindLabel;
+  final List<String> metaLabels;
+  final VoidCallback onCreatePage;
+  final VoidCallback onPageDraftChanged;
+  final VoidCallback onSavePage;
+  final BookmarkCreateCallback onBookmarkCreated;
+  final ProjectPageStorageFormat storageFormat;
+  final VoidCallback? onRenamePage;
+  final VoidCallback? onDuplicatePage;
+  final VoidCallback? onDeletePage;
+  final VoidCallback? onTogglePinned;
+  final bool isPinned;
+
+  @override
+  State<ProjectPageEditor> createState() => _ProjectPageEditorState();
+}
+
+class _ProjectPageEditorState extends State<ProjectPageEditor> {
+  final ScrollController _scrollController = ScrollController();
+  quill.QuillController? _editorController;
+  StreamSubscription<dynamic>? _documentChangeSubscription;
+  String? _loadedPageId;
+  String _loadedRawContent = '';
+  bool _isApplyingEditorTransform = false;
+  PendingListShortcutRevert? _pendingListShortcutRevert;
+
+  quill.QuillController? get _controller => _editorController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEditorDocument(force: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant ProjectPageEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final pageChanged =
+        oldWidget.pageId != widget.pageId ||
+        oldWidget.contentController.text != widget.contentController.text;
+    if (pageChanged) {
+      _loadEditorDocument(force: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _documentChangeSubscription?.cancel();
+    _editorController?.removeListener(_handleEditorStateChanged);
+    _editorController?.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _loadEditorDocument({required bool force}) {
+    final rawContent = widget.contentController.text;
+    if (!force &&
+        widget.pageId == _loadedPageId &&
+        rawContent == _loadedRawContent) {
+      return;
+    }
+
+    _documentChangeSubscription?.cancel();
+    _editorController?.removeListener(_handleEditorStateChanged);
+    _editorController?.dispose();
+
+    final document = ProjectDocumentContentCodec.decode(rawContent);
+    final controller = quill.QuillController(
+      document: document,
+      selection: TextSelection.collapsed(
+        offset: math.max(0, document.length - 1),
+      ),
+      readOnly: false,
+    );
+    _pendingListShortcutRevert = null;
+    controller.onReplaceText = (index, len, data) {
+      if (_isApplyingEditorTransform) {
+        return true;
+      }
+
+      final listShortcut = applyMarkdownListShortcut(
+        controller: controller,
+        index: index,
+        len: len,
+        data: data,
+      );
+      if (listShortcut != null) {
+        _pendingListShortcutRevert = listShortcut;
+        return false;
+      }
+
+      final handledSelectionWrap = applySelectionWrapEdit(
+        controller: controller,
+        index: index,
+        len: len,
+        data: data,
+        replaceText: (
+          int nextIndex,
+          int nextLen,
+          Object? nextData,
+          TextSelection? nextSelection,
+        ) {
+          _isApplyingEditorTransform = true;
+          try {
+            controller.replaceText(nextIndex, nextLen, nextData, nextSelection);
+          } finally {
+            _isApplyingEditorTransform = false;
+          }
+        },
+      );
+      if (handledSelectionWrap) {
+        _pendingListShortcutRevert = null;
+        return false;
+      }
+
+      _pendingListShortcutRevert = null;
+      return true;
+    };
+    controller.addListener(_handleEditorStateChanged);
+    _documentChangeSubscription = controller.document.changes.listen((_) {
+      _syncEditorDocumentToController();
+    });
+
+    _editorController = controller;
+    _loadedPageId = widget.pageId;
+    _loadedRawContent = rawContent;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _handleEditorStateChanged() {
+    final pendingListShortcutRevert = _pendingListShortcutRevert;
+    final controller = _controller;
+    if (pendingListShortcutRevert != null &&
+        controller != null &&
+        (controller.selection.baseOffset != pendingListShortcutRevert.lineStart ||
+            !controller.selection.isCollapsed)) {
+      _pendingListShortcutRevert = null;
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _syncEditorDocumentToController() {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+
+    final encoded = switch (widget.storageFormat) {
+      ProjectPageStorageFormat.richTextJson => ProjectDocumentContentCodec.encode(
+        controller.document,
+      ),
+      ProjectPageStorageFormat.markdown => ProjectDocumentContentCodec.toMarkdown(
+        controller.document,
+      ),
+    };
+    if (widget.contentController.text == encoded) {
+      return;
+    }
+
+    widget.contentController.value = TextEditingValue(
+      text: encoded,
+      selection: TextSelection.collapsed(offset: encoded.length),
+    );
+    _loadedRawContent = encoded;
+    widget.onPageDraftChanged();
+  }
+
+  void _handleFileMenuSelection(String action) {
+    switch (action) {
+      case 'new':
+        widget.onCreatePage();
+        return;
+      case 'rename':
+        widget.onRenamePage?.call();
+        return;
+      case 'duplicate':
+        widget.onDuplicatePage?.call();
+        return;
+      case 'delete':
+        widget.onDeletePage?.call();
+        return;
+    }
+  }
+
+  void _handleInsertMenuSelection(String action) {
+    switch (action) {
+      case 'heading':
+        _applyLineAttribute(quill.Attribute.h1);
+        return;
+      case 'subheading':
+        _applyLineAttribute(quill.Attribute.h2);
+        return;
+      case 'bullet':
+        _applyLineAttribute(quill.Attribute.ul);
+        return;
+      case 'numbered':
+        _applyLineAttribute(quill.Attribute.ol);
+        return;
+      case 'quote':
+        _applyLineAttribute(quill.Attribute.blockQuote);
+        return;
+      case 'divider':
+        final controller = _controller;
+        if (controller == null) {
+          return;
+        }
+        final selection = controller.selection;
+        final insertIndex = math.max(0, selection.end);
+        controller.replaceText(
+          insertIndex,
+          selection.isValid ? selection.end - selection.start : 0,
+          '\n---\n',
+          TextSelection.collapsed(offset: insertIndex + 5),
+        );
+        _focusEditor();
+        return;
+    }
+  }
+
+  void _handleBookmarkMenuSelection(String action) {
+    if (action == 'new') {
+      unawaited(_createBookmark());
+      return;
+    }
+
+    if (!action.startsWith('bookmark:')) {
+      return;
+    }
+
+    final bookmarkId = action.substring(9);
+    for (final bookmark in widget.bookmarks) {
+      if (bookmark.id == bookmarkId) {
+        _jumpToBookmark(bookmark);
+        return;
+      }
+    }
+  }
+
+  void _applyLineAttribute(quill.Attribute<dynamic> attribute) {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+
+    controller.formatSelection(attribute);
+    _focusEditor();
+  }
+
+  void _toggleInlineAttribute(quill.Attribute<dynamic> attribute) {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+
+    final attributes = controller.getSelectionStyle().attributes;
+    final enabled = attributes.containsKey(attribute.key);
+    controller.formatSelection(
+      enabled ? quill.Attribute.clone(attribute, null) : attribute,
+    );
+    _focusEditor();
+  }
+
+  Future<void> _addLink() async {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+
+    final selection = controller.selection;
+    final hasSelection = selection.isValid && !selection.isCollapsed;
+    final textController = TextEditingController(
+      text: hasSelection ? _selectedPlainText().trim() : '',
+    );
+    final urlController = TextEditingController();
+
+    final result = await showDialog<_LinkDraft>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add link'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!hasSelection)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TextField(
+                    controller: textController,
+                    decoration: const InputDecoration(
+                      labelText: 'Link text',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              TextField(
+                controller: urlController,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'URL',
+                  hintText: 'https://example.com',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final url = urlController.text.trim();
+                final label = textController.text.trim();
+                if (url.isEmpty || (!hasSelection && label.isEmpty)) {
+                  return;
+                }
+
+                Navigator.of(context).pop(_LinkDraft(text: label, url: url));
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
+    );
+
+    textController.dispose();
+    urlController.dispose();
+
+    if (result == null) {
+      return;
+    }
+
+    final start = math.max(0, selection.start);
+    var length = math.max(0, selection.end - selection.start);
+    if (!hasSelection) {
+      controller.replaceText(
+        start,
+        0,
+        result.text,
+        TextSelection.collapsed(offset: start + result.text.length),
+      );
+      controller.updateSelection(
+        TextSelection(
+          baseOffset: start,
+          extentOffset: start + result.text.length,
+        ),
+        quill.ChangeSource.local,
+      );
+      length = result.text.length;
+    }
+
+    controller.formatText(
+      start,
+      length,
+      quill.Attribute.fromKeyValue('link', result.url),
+    );
+    _focusEditor();
+  }
+
+  Future<void> _createBookmark() async {
+    final suggestedAnchor = _bookmarkAnchorSuggestion();
+    final draft = await showDialog<_BookmarkDraft>(
+      context: context,
+      builder: (context) {
+        return _BookmarkDialog(
+          initialAnchor: suggestedAnchor,
+          initialLabel: suggestedAnchor,
+        );
+      },
+    );
+    if (draft == null) {
+      return;
+    }
+
+    await widget.onBookmarkCreated(draft.label, draft.anchor, draft.note);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Bookmark added.')));
+  }
+
+  String _bookmarkAnchorSuggestion() {
+    final selectedText = _selectedPlainText().trim();
+    if (selectedText.isNotEmpty) {
+      return selectedText.replaceAll('\n', ' ');
+    }
+
+    final controller = _controller;
+    if (controller == null) {
+      return '';
+    }
+
+    final plainText = controller.document.toPlainText();
+    if (plainText.trim().isEmpty) {
+      return '';
+    }
+
+    final cursor = controller.selection.baseOffset.clamp(0, plainText.length);
+    final lineStart = cursor <= 0
+        ? 0
+        : plainText.lastIndexOf('\n', cursor - 1) + 1;
+    final nextLineBreak = plainText.indexOf('\n', cursor);
+    final lineEnd = nextLineBreak < 0 ? plainText.length : nextLineBreak;
+    return plainText.substring(lineStart, lineEnd).trim();
+  }
+
+  String _selectedPlainText() {
+    final controller = _controller;
+    if (controller == null) {
+      return '';
+    }
+
+    final selection = controller.selection;
+    if (!selection.isValid || selection.isCollapsed) {
+      return '';
+    }
+
+    final plainText = controller.document.toPlainText();
+    final start = selection.start.clamp(0, plainText.length);
+    final end = selection.end.clamp(0, plainText.length);
+    if (end <= start) {
+      return '';
+    }
+
+    return plainText.substring(start, end);
+  }
+
+  void _jumpToBookmark(DocumentBookmark bookmark) {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+
+    final anchor = bookmark.anchor.trim();
+    if (anchor.isEmpty) {
+      return;
+    }
+
+    final plainText = controller.document.toPlainText();
+    final start = plainText.toLowerCase().indexOf(anchor.toLowerCase());
+    if (start < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not find "${bookmark.anchor}" in this page.'),
+        ),
+      );
+      return;
+    }
+
+    controller.updateSelection(
+      TextSelection(baseOffset: start, extentOffset: start + anchor.length),
+      quill.ChangeSource.local,
+    );
+    _focusEditor();
+  }
+
+  void _focusEditor() {
+    FocusScope.of(context).requestFocus(widget.contentFocusNode);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    final activeAttributes =
+        controller?.getSelectionStyle().attributes ?? const {};
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFDDE4F2)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7F94C8).withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _PageEditorToolbar(
+            titleText: widget.pageTitle,
+            pageKindLabel: widget.pageKindLabel,
+            metaLabels: [
+              ...widget.metaLabels,
+              _labelForSelectionStyle(activeAttributes),
+            ],
+            bookmarks: widget.bookmarks,
+            isPinned: widget.isPinned,
+            hasChanges: widget.hasChanges,
+            boldEnabled: activeAttributes.containsKey(quill.Attribute.bold.key),
+            italicEnabled:
+                activeAttributes.containsKey(quill.Attribute.italic.key),
+            underlineEnabled:
+                activeAttributes.containsKey(quill.Attribute.underline.key),
+            linkEnabled: activeAttributes.containsKey('link'),
+            onFileMenuSelection: _handleFileMenuSelection,
+            onInsertMenuSelection: _handleInsertMenuSelection,
+            onBookmarksMenuSelection: _handleBookmarkMenuSelection,
+            onToggleBold: () => _toggleInlineAttribute(quill.Attribute.bold),
+            onToggleItalic: () => _toggleInlineAttribute(quill.Attribute.italic),
+            onToggleUnderline: () =>
+                _toggleInlineAttribute(quill.Attribute.underline),
+            onAddLink: _addLink,
+            onTogglePinned: widget.onTogglePinned,
+            canRename: widget.onRenamePage != null,
+            canDuplicate: widget.onDuplicatePage != null,
+            canDelete: widget.onDeletePage != null,
+            onSavePage: widget.onSavePage,
+          ),
+          const Divider(height: 1, color: Color(0xFFE5EAF5)),
+          Expanded(
+            child: controller == null
+                ? const SizedBox.shrink()
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final showPageHeader = constraints.maxHeight >= 240;
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (showPageHeader) ...[
+                              Text(
+                                widget.pageTitle,
+                                key: const ValueKey('workspace-page-title'),
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                widget.pageKindLabel,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: const Color(0xFF65748F)),
+                              ),
+                              const SizedBox(height: 20),
+                            ] else
+                              Text(
+                                widget.pageTitle,
+                                key: const ValueKey('workspace-page-title'),
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            Expanded(
+                              child: Container(
+                                width: double.infinity,
+                                margin: EdgeInsets.only(
+                                  top: showPageHeader ? 0 : 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFCFDFF),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: const Color(0xFFE6EBF6),
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    18,
+                                    20,
+                                    18,
+                                  ),
+                                  child: Focus(
+                                    onKeyEvent: (node, event) {
+                                      if (event is! KeyDownEvent) {
+                                        return KeyEventResult.ignored;
+                                      }
+                                      if (event.logicalKey !=
+                                          LogicalKeyboardKey.backspace) {
+                                        return KeyEventResult.ignored;
+                                      }
+
+                                      final pendingListShortcutRevert =
+                                          _pendingListShortcutRevert;
+                                      if (pendingListShortcutRevert == null) {
+                                        return KeyEventResult.ignored;
+                                      }
+
+                                      final applied =
+                                          revertMarkdownListShortcut(
+                                        controller: controller,
+                                        pending: pendingListShortcutRevert,
+                                      );
+                                      if (!applied) {
+                                        return KeyEventResult.ignored;
+                                      }
+
+                                      setState(() {
+                                        _pendingListShortcutRevert = null;
+                                      });
+                                      return KeyEventResult.handled;
+                                    },
+                                    child: quill.QuillEditor.basic(
+                                      controller: controller,
+                                      focusNode: widget.contentFocusNode,
+                                      scrollController: _scrollController,
+                                      config: quill.QuillEditorConfig(
+                                        placeholder:
+                                            'Write in one continuous page. Use Insert for structure and format from the toolbar.',
+                                        padding: EdgeInsets.zero,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PageEditorToolbar extends StatelessWidget {
+  const _PageEditorToolbar({
+    required this.titleText,
+    required this.pageKindLabel,
+    required this.metaLabels,
+    required this.bookmarks,
+    required this.isPinned,
+    required this.hasChanges,
+    required this.boldEnabled,
+    required this.italicEnabled,
+    required this.underlineEnabled,
+    required this.linkEnabled,
+    required this.onFileMenuSelection,
+    required this.onInsertMenuSelection,
+    required this.onBookmarksMenuSelection,
+    required this.onToggleBold,
+    required this.onToggleItalic,
+    required this.onToggleUnderline,
+    required this.onAddLink,
+    required this.canRename,
+    required this.canDuplicate,
+    required this.canDelete,
+    required this.onSavePage,
+    this.onTogglePinned,
+  });
+
+  final String titleText;
+  final String pageKindLabel;
+  final List<String> metaLabels;
+  final List<DocumentBookmark> bookmarks;
+  final bool isPinned;
+  final bool hasChanges;
+  final bool boldEnabled;
+  final bool italicEnabled;
+  final bool underlineEnabled;
+  final bool linkEnabled;
+  final PopupMenuItemSelected<String> onFileMenuSelection;
+  final PopupMenuItemSelected<String> onInsertMenuSelection;
+  final PopupMenuItemSelected<String> onBookmarksMenuSelection;
+  final VoidCallback onToggleBold;
+  final VoidCallback onToggleItalic;
+  final VoidCallback onToggleUnderline;
+  final VoidCallback onAddLink;
+  final bool canRename;
+  final bool canDuplicate;
+  final bool canDelete;
+  final VoidCallback onSavePage;
+  final VoidCallback? onTogglePinned;
+
+  @override
+  Widget build(BuildContext context) {
+    final uniqueMetaLabels = <String>{
+      for (final label in metaLabels)
+        if (label.trim().isNotEmpty) label.trim(),
+    }.toList();
+    final narrow = MediaQuery.sizeOf(context).width < 1120;
+
+    final menus = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _ToolbarMenuButton(
+          label: 'File',
+          icon: Icons.insert_drive_file_outlined,
+          itemBuilder: (context) => [
+            const PopupMenuItem<String>(value: 'new', child: Text('New page')),
+            if (canRename)
+              const PopupMenuItem<String>(
+                value: 'rename',
+                child: Text('Rename page'),
+              ),
+            if (canDuplicate)
+              const PopupMenuItem<String>(
+                value: 'duplicate',
+                child: Text('Duplicate page'),
+              ),
+            if (canDelete) const PopupMenuDivider(),
+            if (canDelete)
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Text('Delete page'),
+              ),
+          ],
+          onSelected: onFileMenuSelection,
+        ),
+        _ToolbarMenuButton(
+          label: 'Insert',
+          icon: Icons.add_box_outlined,
+          itemBuilder: (context) => const [
+            PopupMenuItem<String>(value: 'heading', child: Text('Heading')),
+            PopupMenuItem<String>(
+              value: 'subheading',
+              child: Text('Subheading'),
+            ),
+            PopupMenuItem<String>(value: 'bullet', child: Text('Bullet list')),
+            PopupMenuItem<String>(
+              value: 'numbered',
+              child: Text('Numbered list'),
+            ),
+            PopupMenuItem<String>(value: 'quote', child: Text('Quote')),
+            PopupMenuItem<String>(value: 'divider', child: Text('Divider')),
+          ],
+          onSelected: onInsertMenuSelection,
+        ),
+        _ToolbarMenuButton(
+          label: 'Bookmarks',
+          icon: Icons.bookmarks_outlined,
+          itemBuilder: (context) => [
+            const PopupMenuItem<String>(
+              value: 'new',
+              child: Text('Create bookmark'),
+            ),
+            if (bookmarks.isNotEmpty) const PopupMenuDivider(),
+            if (bookmarks.isNotEmpty)
+              PopupMenuItem<String>(
+                enabled: false,
+                height: 28,
+                child: Text(
+                  'Jump to bookmark',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFF61708B),
+                  ),
+                ),
+              ),
+            if (bookmarks.isEmpty)
+              const PopupMenuItem<String>(
+                enabled: false,
+                child: Text('No bookmarks yet'),
+              ),
+            for (final bookmark in bookmarks)
+              PopupMenuItem<String>(
+                value: 'bookmark:${bookmark.id}',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(bookmark.label),
+                    Text(
+                      bookmark.anchor,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF61708B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          onSelected: onBookmarksMenuSelection,
+        ),
+      ],
+    );
+
+    final titleArea = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titleText,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _ToolbarLabel(text: pageKindLabel),
+            for (final label in uniqueMetaLabels) _ToolbarLabel(text: label),
+          ],
+        ),
+      ],
+    );
+
+    final actions = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (onTogglePinned != null)
+          IconButton(
+            onPressed: onTogglePinned,
+            tooltip: isPinned ? 'Unpin page' : 'Pin page',
+            icon: Icon(
+              isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+            ),
+          ),
+        _FormatButton(
+          icon: Icons.format_bold_rounded,
+          tooltip: 'Bold',
+          selected: boldEnabled,
+          onPressed: onToggleBold,
+        ),
+        _FormatButton(
+          icon: Icons.format_italic_rounded,
+          tooltip: 'Italic',
+          selected: italicEnabled,
+          onPressed: onToggleItalic,
+        ),
+        _FormatButton(
+          icon: Icons.format_underlined_rounded,
+          tooltip: 'Underline',
+          selected: underlineEnabled,
+          onPressed: onToggleUnderline,
+        ),
+        _FormatButton(
+          icon: Icons.link_rounded,
+          tooltip: linkEnabled ? 'Edit link' : 'Add link',
+          selected: linkEnabled,
+          onPressed: onAddLink,
+        ),
+        FilledButton.icon(
+          onPressed: hasChanges ? onSavePage : null,
+          icon: const Icon(Icons.save_outlined),
+          label: Text(hasChanges ? 'Save' : 'Saved'),
+        ),
+      ],
+    );
+
+    if (narrow) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            menus,
+            const SizedBox(height: 12),
+            titleArea,
+            const SizedBox(height: 12),
+            actions,
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          menus,
+          const SizedBox(width: 12),
+          Expanded(child: titleArea),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Align(alignment: Alignment.topRight, child: actions),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolbarMenuButton extends StatelessWidget {
+  const _ToolbarMenuButton({
+    required this.label,
+    required this.icon,
+    required this.itemBuilder,
+    required this.onSelected,
+  });
+
+  final String label;
+  final IconData icon;
+  final PopupMenuItemBuilder<String> itemBuilder;
+  final PopupMenuItemSelected<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      itemBuilder: itemBuilder,
+      onSelected: onSelected,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7FAFF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFDCE4F4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF55657F)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF44546E),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 18,
+              color: Color(0xFF55657F),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FormatButton extends StatelessWidget {
+  const _FormatButton({
+    required this.icon,
+    required this.tooltip,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool selected;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: selected
+              ? const Color(0xFFEAF1FF)
+              : const Color(0xFFF7FAFF),
+          foregroundColor: selected
+              ? const Color(0xFF3F67B8)
+              : const Color(0xFF55657F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFFDCE4F4)),
+          ),
+        ),
+        icon: Icon(icon),
+      ),
+    );
+  }
+}
+
+class _ToolbarLabel extends StatelessWidget {
+  const _ToolbarLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: const Color(0xFF61708B)),
+    );
+  }
+}
+
+class _BookmarkDialog extends StatefulWidget {
+  const _BookmarkDialog({
+    required this.initialAnchor,
+    required this.initialLabel,
+  });
+
+  final String initialAnchor;
+  final String initialLabel;
+
+  @override
+  State<_BookmarkDialog> createState() => _BookmarkDialogState();
+}
+
+class _BookmarkDialogState extends State<_BookmarkDialog> {
+  late final TextEditingController _labelController = TextEditingController(
+    text: widget.initialLabel,
+  );
+  late final TextEditingController _anchorController = TextEditingController(
+    text: widget.initialAnchor,
+  );
+  final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    _anchorController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final label = _labelController.text.trim();
+    final anchor = _anchorController.text.trim();
+    if (label.isEmpty || anchor.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _BookmarkDraft(
+        label: label,
+        anchor: anchor,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create bookmark'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _labelController,
+              decoration: const InputDecoration(
+                labelText: 'Label',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _anchorController,
+              decoration: const InputDecoration(
+                labelText: 'Anchor text',
+                hintText: 'Heading or phrase to jump to',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _noteController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Add')),
+      ],
+    );
+  }
+}
+
+class _BookmarkDraft {
+  const _BookmarkDraft({required this.label, required this.anchor, this.note});
+
+  final String label;
+  final String anchor;
+  final String? note;
+}
+
+class _LinkDraft {
+  const _LinkDraft({required this.text, required this.url});
+
+  final String text;
+  final String url;
+}
+
+String _labelForSelectionStyle(
+  Map<String, quill.Attribute<dynamic>> attributes,
+) {
+  final headerAttribute = attributes[quill.Attribute.header.key];
+  if (headerAttribute?.value == 1) {
+    return 'Heading';
+  }
+  if (headerAttribute?.value == 2) {
+    return 'Subheading';
+  }
+  if (headerAttribute?.value == 3) {
+    return 'Section heading';
+  }
+
+  final listAttribute = attributes[quill.Attribute.list.key];
+  if (listAttribute?.value == 'bullet') {
+    return 'Bullet list';
+  }
+  if (listAttribute?.value == 'ordered') {
+    return 'Numbered list';
+  }
+
+  if (attributes.containsKey(quill.Attribute.blockQuote.key)) {
+    return 'Quote';
+  }
+  if (attributes.containsKey(quill.Attribute.codeBlock.key)) {
+    return 'Code block';
+  }
+
+  return 'Paragraph';
+}
