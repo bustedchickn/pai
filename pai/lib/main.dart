@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'data/firestore/firestore_document_repository.dart';
+import 'data/firestore/firestore_project_repository.dart';
 import 'data/in_memory/in_memory_document_repository.dart';
 import 'data/in_memory/in_memory_pai_store.dart';
 import 'data/in_memory/in_memory_project_repository.dart';
@@ -18,11 +21,16 @@ import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
+import 'firebase_options.dart';
+import 'services/auth_bootstrap_service.dart';
 import 'services/board_position_storage.dart';
 import 'services/pai_data_service.dart';
+import 'services/workspace_preferences_storage.dart';
 import 'widgets/project_board.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const PaiApp());
 }
 
@@ -55,6 +63,9 @@ class _AppShellState extends State<AppShell> {
   int selectedIndex = 0;
 
   final BoardPositionStorage _boardPositionStorage = BoardPositionStorage();
+  final WorkspacePreferencesStorage _workspacePreferencesStorage =
+      WorkspacePreferencesStorage();
+  late final AuthBootstrapService _authBootstrapService;
   late final PaiDataService _dataService;
 
   List<Project> projects = const [];
@@ -62,6 +73,8 @@ class _AppShellState extends State<AppShell> {
   List<ProjectDocument> documents = const [];
   List<DocumentBookmark> bookmarks = const [];
   bool _isLoading = true;
+  bool _showWorkspaceStats = false;
+  String? _authUserId;
   String? _loadError;
   String? selectedProjectId;
   int projectSelectionRequestId = 0;
@@ -69,20 +82,37 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    final useFirebase = Firebase.apps.isNotEmpty;
     final store = InMemoryPaiStore();
+    _authBootstrapService = useFirebase
+        ? FirebaseAuthBootstrapService()
+        : const LocalAuthBootstrapService();
+    final projectRepository = useFirebase
+        ? FirestoreProjectRepository(localStore: store)
+        : InMemoryProjectRepository(store);
+    final documentRepository = useFirebase
+        ? FirestoreDocumentRepository(localStore: store)
+        : InMemoryDocumentRepository(store);
     _dataService = PaiDataService(
-      projectRepository: InMemoryProjectRepository(store),
+      projectRepository: projectRepository,
       taskRepository: InMemoryTaskRepository(store),
       sessionRepository: InMemorySessionRepository(store),
-      documentRepository: InMemoryDocumentRepository(store),
+      documentRepository: documentRepository,
     );
     unawaited(_initializeData());
   }
 
   Future<void> _initializeData() async {
     try {
-      var snapshot = await _dataService.load();
-      final storedPositions = await _boardPositionStorage.loadPositions();
+      final authResult = await _authBootstrapService.ensureSignedIn();
+      final results = await Future.wait<Object>([
+        _dataService.load(),
+        _boardPositionStorage.loadPositions(),
+        _workspacePreferencesStorage.loadShowWorkspaceStats(),
+      ]);
+      var snapshot = results[0] as AppDataSnapshot;
+      final storedPositions = results[1] as Map<String, Offset>;
+      final showWorkspaceStats = results[2] as bool;
       if (storedPositions.isNotEmpty) {
         final restoredBoardProjects = [
           for (final boardProject in snapshot.boardProjects)
@@ -101,6 +131,8 @@ class _AppShellState extends State<AppShell> {
 
       setState(() {
         _applySnapshot(snapshot);
+        _authUserId = authResult.uid;
+        _showWorkspaceStats = showWorkspaceStats;
         _isLoading = false;
       });
     } catch (error) {
@@ -200,6 +232,15 @@ class _AppShellState extends State<AppShell> {
       projectSelectionRequestId++;
       selectedIndex = 1;
     });
+  }
+
+  void setShowWorkspaceStats(bool value) {
+    if (_showWorkspaceStats == value) {
+      return;
+    }
+
+    setState(() => _showWorkspaceStats = value);
+    unawaited(_workspacePreferencesStorage.saveShowWorkspaceStats(value));
   }
 
   Future<void> saveSession(String projectId, SessionNote session) async {
@@ -321,7 +362,8 @@ class _AppShellState extends State<AppShell> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Could not load app data.\n$_loadError',
+              'Could not load app data.\n$_loadError'
+              '${_authUserId == null ? '' : '\nUser: $_authUserId'}',
               textAlign: TextAlign.center,
             ),
           ),
@@ -333,11 +375,13 @@ class _AppShellState extends State<AppShell> {
       DashboardScreen(
         projects: projects,
         boardProjects: boardProjects,
+        showWorkspaceStats: _showWorkspaceStats,
         onProjectOpen: openProject,
         onProjectMoved: updateBoardProjectPosition,
         onProjectMoveEnded: persistBoardProjectPositions,
         onProjectCreated: createProject,
         onOpenSettings: () => selectPage(3),
+        onShowWorkspaceStatsChanged: setShowWorkspaceStats,
       ),
       ProjectsScreen(
         projects: projects,
@@ -354,7 +398,10 @@ class _AppShellState extends State<AppShell> {
         onDocumentDeleted: deleteDocument,
       ),
       RemindersScreen(projects: projects),
-      const SettingsScreen(),
+      SettingsScreen(
+        showWorkspaceStats: _showWorkspaceStats,
+        onShowWorkspaceStatsChanged: setShowWorkspaceStats,
+      ),
     ];
 
     return LayoutBuilder(

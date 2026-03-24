@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "430029536167",
+    "project_id": "pai-project-ai",
+    "storage_bucket": "pai-project-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:430029536167:android:793f7a1ed1fe4134c6d482",
+        "android_client_info": {
+          "package_name": "com.example.pai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBDBrYi6YtMoUeVuKVcWXGAr6z_NF_Q84"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

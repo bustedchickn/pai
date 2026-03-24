@@ -1,0 +1,628 @@
+[debug] [2026-03-24T18:45:59.629Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:45:59.634Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js login:list
+[debug] [2026-03-24T18:45:59.634Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:45:59.634Z] Platform:      win32
+[debug] [2026-03-24T18:45:59.634Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:45:59.635Z] Time:          Tue Mar 24 2026 12:45:59 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:45:59.635Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:45:59.638Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[info] Logged in as talmage.kay@gmail.com
+[debug] [2026-03-24T18:46:49.434Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:46:49.437Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js projects:list
+[debug] [2026-03-24T18:46:49.438Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:46:49.438Z] Platform:      win32
+[debug] [2026-03-24T18:46:49.438Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:46:49.438Z] Time:          Tue Mar 24 2026 12:46:49 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:46:49.438Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:46:49.440Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-03-24T18:46:49.476Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:46:49.477Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T18:46:49.481Z] Checked if tokens are valid: false, expires at: 1773173268917
+[debug] [2026-03-24T18:46:49.482Z] Checked if tokens are valid: false, expires at: 1773173268917
+[debug] [2026-03-24T18:46:49.482Z] > refreshing access token with scopes: []
+[debug] [2026-03-24T18:46:49.484Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-03-24T18:46:49.484Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-24T18:46:49.686Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-03-24T18:46:49.686Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-03-24T18:46:49.694Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-03-24T18:46:49.715Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-03-24T18:46:49.715Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-03-24T18:46:50.141Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-03-24T18:46:50.141Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] ┌──────────────────────┬─────────────────┬────────────────┬──────────────────────┐
+│ Project Display Name │ Project ID      │ Project Number │ Resource Location ID │
+├──────────────────────┼─────────────────┼────────────────┼──────────────────────┤
+│ event-ops            │ event-ops-66b38 │ 895425433528   │ [Not specified]      │
+├──────────────────────┼─────────────────┼────────────────┼──────────────────────┤
+│ pai-project ai       │ pai-project-ai  │ 430029536167   │ [Not specified]      │
+├──────────────────────┼─────────────────┼────────────────┼──────────────────────┤
+│ wyst                 │ wyst-7fe74      │ 2082907574     │ [Not specified]      │
+└──────────────────────┴─────────────────┴────────────────┴──────────────────────┘
+[info] 
+[info] 3 project(s) total.
+[debug] [2026-03-24T18:47:22.445Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:47:22.448Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:list --project pai-project-ai
+[debug] [2026-03-24T18:47:22.449Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:47:22.449Z] Platform:      win32
+[debug] [2026-03-24T18:47:22.449Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:47:22.449Z] Time:          Tue Mar 24 2026 12:47:22 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:47:22.449Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:47:22.455Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:47:22.456Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T18:47:22.460Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:47:22.460Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:47:22.462Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/pai-project-ai:searchApps pageSize=100
+[debug] [2026-03-24T18:47:22.778Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/pai-project-ai:searchApps 200
+[debug] [2026-03-24T18:47:22.779Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/pai-project-ai:searchApps {}
+[info] No apps found.
+[debug] [2026-03-24T18:47:44.693Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:47:44.698Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js help apps:create
+[debug] [2026-03-24T18:47:44.698Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:47:44.699Z] Platform:      win32
+[debug] [2026-03-24T18:47:44.699Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:47:44.699Z] Time:          Tue Mar 24 2026 12:47:44 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:47:44.699Z] ----------------------------------------------------------------------
+[debug] 
+[info]  Privacy Policy: https://firebase.google.com/support/privacy
+[info] 
+[debug] [2026-03-24T18:48:42.196Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:48:42.201Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js help apps:sdkconfig
+[debug] [2026-03-24T18:48:42.201Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:48:42.202Z] Platform:      win32
+[debug] [2026-03-24T18:48:42.202Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:48:42.202Z] Time:          Tue Mar 24 2026 12:48:42 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:48:42.202Z] ----------------------------------------------------------------------
+[debug] 
+[info]  Privacy Policy: https://firebase.google.com/support/privacy
+[info] 
+[debug] [2026-03-24T18:49:44.110Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:49:44.114Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:create WEB pai-web --project pai-project-ai
+[debug] [2026-03-24T18:49:44.115Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:49:44.115Z] Platform:      win32
+[debug] [2026-03-24T18:49:44.115Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:49:44.115Z] Time:          Tue Mar 24 2026 12:49:44 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:49:44.115Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:49:44.122Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:49:44.123Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[info] Create your WEB app in project pai-project-ai:
+[debug] [2026-03-24T18:49:44.127Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:44.128Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:44.129Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/webApps [none]
+[debug] [2026-03-24T18:49:44.129Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/webApps {"displayName":"pai-web"}
+[debug] [2026-03-24T18:49:44.894Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/webApps 200
+[debug] [2026-03-24T18:49:44.894Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/webApps {"name":"operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi"}
+[debug] [2026-03-24T18:49:44.895Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:44.895Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:44.895Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi [none]
+[debug] [2026-03-24T18:49:45.110Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi 200
+[debug] [2026-03-24T18:49:45.110Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi {"name":"operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi"}
+[debug] [2026-03-24T18:49:45.615Z] [Create Web app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:45.616Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:45.616Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:45.616Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi [none]
+[debug] [2026-03-24T18:49:45.790Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:49:45.794Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:create ANDROID pai-android --package-name com.example.pai --project pai-project-ai
+[debug] [2026-03-24T18:49:45.794Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:49:45.794Z] Platform:      win32
+[debug] [2026-03-24T18:49:45.794Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:49:45.795Z] Time:          Tue Mar 24 2026 12:49:45 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:49:45.795Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:49:45.802Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:49:45.803Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[info] Create your ANDROID app in project pai-project-ai:
+[debug] [2026-03-24T18:49:45.807Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:45.807Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:45.809Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/androidApps [none]
+[debug] [2026-03-24T18:49:45.809Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/androidApps {"displayName":"pai-android","packageName":"com.example.pai"}
+[debug] [2026-03-24T18:49:45.865Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi 200
+[debug] [2026-03-24T18:49:45.866Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi {"name":"operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi"}
+[debug] [2026-03-24T18:49:46.333Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:49:46.336Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:create IOS pai-ios --bundle-id com.example.pai --project pai-project-ai
+[debug] [2026-03-24T18:49:46.337Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:49:46.337Z] Platform:      win32
+[debug] [2026-03-24T18:49:46.337Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:49:46.337Z] Time:          Tue Mar 24 2026 12:49:46 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:49:46.337Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:49:46.347Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:49:46.348Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[info] Create your IOS app in project pai-project-ai:
+[debug] [2026-03-24T18:49:46.354Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:46.354Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:46.356Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/iosApps [none]
+[debug] [2026-03-24T18:49:46.356Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/iosApps {"displayName":"pai-ios","bundleId":"com.example.pai"}
+[debug] [2026-03-24T18:49:46.555Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/androidApps 200
+[debug] [2026-03-24T18:49:46.555Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/androidApps {"name":"operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj"}
+[debug] [2026-03-24T18:49:46.557Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:46.557Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:46.557Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj [none]
+[debug] [2026-03-24T18:49:46.794Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj 200
+[debug] [2026-03-24T18:49:46.795Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj {"name":"operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj"}
+[debug] [2026-03-24T18:49:46.880Z] [Create Web app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:46.881Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:46.881Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:46.881Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi [none]
+[debug] [2026-03-24T18:49:47.090Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi 200
+[debug] [2026-03-24T18:49:47.091Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi {"name":"operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi"}
+[debug] [2026-03-24T18:49:47.224Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/iosApps 200
+[debug] [2026-03-24T18:49:47.225Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pai-project-ai/iosApps {"name":"operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl"}
+[debug] [2026-03-24T18:49:47.226Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:47.226Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:47.226Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl [none]
+[debug] [2026-03-24T18:49:47.299Z] [Create Android app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:47.300Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:47.300Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:47.300Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj [none]
+[debug] [2026-03-24T18:49:47.503Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl 200
+[debug] [2026-03-24T18:49:47.503Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl {"name":"operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl"}
+[debug] [2026-03-24T18:49:47.523Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj 200
+[debug] [2026-03-24T18:49:47.523Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj {"name":"operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj"}
+[debug] [2026-03-24T18:49:48.016Z] [Create iOS app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:48.016Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:48.017Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:48.017Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl [none]
+[debug] [2026-03-24T18:49:48.202Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl 200
+[debug] [2026-03-24T18:49:48.202Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl {"name":"operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl"}
+[debug] [2026-03-24T18:49:48.529Z] [Create Android app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:48.530Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:48.530Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:48.530Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj [none]
+[debug] [2026-03-24T18:49:48.780Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj 200
+[debug] [2026-03-24T18:49:48.780Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj {"name":"operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj"}
+[debug] [2026-03-24T18:49:49.105Z] [Create Web app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:49.106Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:49.106Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:49.106Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi [none]
+[debug] [2026-03-24T18:49:49.211Z] [Create iOS app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:49.212Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:49.212Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:49.212Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl [none]
+[debug] [2026-03-24T18:49:49.350Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi 200
+[debug] [2026-03-24T18:49:49.350Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi {"name":"operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi"}
+[debug] [2026-03-24T18:49:49.431Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl 200
+[debug] [2026-03-24T18:49:49.431Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl {"name":"operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl"}
+[debug] [2026-03-24T18:49:50.795Z] [Create Android app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:50.796Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:50.796Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:50.796Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj [none]
+[debug] [2026-03-24T18:49:51.090Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj 200
+[debug] [2026-03-24T18:49:51.091Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj {"name":"operations/workflows/OTdiYTA1YTMtYjcxNi00YTZmLWI0Y2MtZjY4NmEwNzIzMmJj","done":true,"response":{"@type":"type.googleapis.com/google.firebase.service.v1beta1.AndroidApp","name":"projects/pai-project-ai/androidApps/1:430029536167:android:793f7a1ed1fe4134c6d482","appId":"1:430029536167:android:793f7a1ed1fe4134c6d482","displayName":"pai-android","projectId":"pai-project-ai","packageName":"com.example.pai","apiKeyId":"98e1cb59-75cd-48cd-9039-551dad480de5","state":"ACTIVE","expireTime":"1970-01-01T00:00:00Z","etag":"1_a6189de4-0a9d-4aae-9deb-7fb032a8a5b9"}}
+[info] 
+[info] 🎉🎉🎉 Your Firebase ANDROID App is ready! 🎉🎉🎉
+[info] 
+[info] App information:
+[info]   - App ID: 1:430029536167:android:793f7a1ed1fe4134c6d482
+[info]   - Display name: pai-android
+[info]   - Package name: com.example.pai
+[info] 
+[info] You can run this command to print out your new app's Google Services config:
+[info]   firebase apps:sdkconfig ANDROID 1:430029536167:android:793f7a1ed1fe4134c6d482
+[debug] [2026-03-24T18:49:51.434Z] [Create iOS app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:51.435Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:51.435Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:51.435Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl [none]
+[debug] [2026-03-24T18:49:51.667Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl 200
+[debug] [2026-03-24T18:49:51.667Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl {"name":"operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl"}
+[debug] [2026-03-24T18:49:53.363Z] [Create Web app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:53.363Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:53.364Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:53.364Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi [none]
+[debug] [2026-03-24T18:49:53.616Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi 200
+[debug] [2026-03-24T18:49:53.616Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi {"name":"operations/workflows/ZTBmNmVjZjAtMWYwNC00YmExLWEyMjQtNDA4NjczN2I5Zjhi","done":true,"response":{"@type":"type.googleapis.com/google.firebase.service.v1beta1.WebApp","name":"projects/pai-project-ai/webApps/1:430029536167:web:234678dbb6420a27c6d482","appId":"1:430029536167:web:234678dbb6420a27c6d482","displayName":"pai-web","projectId":"pai-project-ai","webId":"OTg2OWI3ZDItOWJkMC00YmE2LTliNzAtMjk0NjUyODZhMWJh","apiKeyId":"f9522426-7070-4765-8ab7-f80cd0467543","state":"ACTIVE","expireTime":"1970-01-01T00:00:00Z","etag":"1_b21a73c6-11c7-48c8-aea1-4dc0a07f5ac2"}}
+[info] 
+[info] 🎉🎉🎉 Your Firebase WEB App is ready! 🎉🎉🎉
+[info] 
+[info] App information:
+[info]   - App ID: 1:430029536167:web:234678dbb6420a27c6d482
+[info]   - Display name: pai-web
+[info] 
+[info] You can run this command to print out your new app's Google Services config:
+[info]   firebase apps:sdkconfig WEB 1:430029536167:web:234678dbb6420a27c6d482
+[debug] [2026-03-24T18:49:55.685Z] [Create iOS app Poller] Retrying task index 0
+[debug] [2026-03-24T18:49:55.686Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:55.686Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:49:55.687Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl [none]
+[debug] [2026-03-24T18:49:55.948Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl 200
+[debug] [2026-03-24T18:49:55.948Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl {"name":"operations/workflows/ZjdlMWIwNmMtM2NlNy00OGM1LThkNTMtZDk3NTllNzAyMWZl","done":true,"response":{"@type":"type.googleapis.com/google.firebase.service.v1beta1.IosApp","name":"projects/pai-project-ai/iosApps/1:430029536167:ios:8d6059895561893fc6d482","appId":"1:430029536167:ios:8d6059895561893fc6d482","displayName":"pai-ios","projectId":"pai-project-ai","bundleId":"com.example.pai","apiKeyId":"752013e7-5b31-4cb8-b1e7-11660a8fff7a","state":"ACTIVE","expireTime":"1970-01-01T00:00:00Z","etag":"1_2a18ff87-71e8-4845-a57f-e3542396a719"}}
+[info] 
+[info] 🎉🎉🎉 Your Firebase IOS App is ready! 🎉🎉🎉
+[info] 
+[info] App information:
+[info]   - App ID: 1:430029536167:ios:8d6059895561893fc6d482
+[info]   - Display name: pai-ios
+[info]   - Bundle ID: com.example.pai
+[info] 
+[info] You can run this command to print out your new app's Google Services config:
+[info]   firebase apps:sdkconfig IOS 1:430029536167:ios:8d6059895561893fc6d482
+[debug] [2026-03-24T18:50:46.029Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:50:46.033Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:sdkconfig WEB 1:430029536167:web:234678dbb6420a27c6d482
+[debug] [2026-03-24T18:50:46.034Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:50:46.034Z] Platform:      win32
+[debug] [2026-03-24T18:50:46.034Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:50:46.034Z] Time:          Tue Mar 24 2026 12:50:46 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:50:46.034Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:50:46.042Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:50:46.043Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T18:50:46.047Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:50:46.047Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:50:46.049Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:430029536167:web:234678dbb6420a27c6d482/config [none]
+[debug] [2026-03-24T18:50:46.536Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:430029536167:web:234678dbb6420a27c6d482/config 200
+[debug] [2026-03-24T18:50:46.537Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/webApps/1:430029536167:web:234678dbb6420a27c6d482/config {"projectId":"pai-project-ai","appId":"1:430029536167:web:234678dbb6420a27c6d482","storageBucket":"pai-project-ai.firebasestorage.app","apiKey":"AIzaSyC66tRS4CcgFyhBoGDcKt8EQmQpzzp-Wgk","authDomain":"pai-project-ai.firebaseapp.com","messagingSenderId":"430029536167","measurementId":"G-NS2VHZVQVE","projectNumber":"430029536167","version":"2"}
+[info] {
+  "projectId": "pai-project-ai",
+  "appId": "1:430029536167:web:234678dbb6420a27c6d482",
+  "storageBucket": "pai-project-ai.firebasestorage.app",
+  "apiKey": "AIzaSyC66tRS4CcgFyhBoGDcKt8EQmQpzzp-Wgk",
+  "authDomain": "pai-project-ai.firebaseapp.com",
+  "messagingSenderId": "430029536167",
+  "measurementId": "G-NS2VHZVQVE",
+  "projectNumber": "430029536167",
+  "version": "2"
+}
+[debug] [2026-03-24T18:50:46.583Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:50:46.587Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:sdkconfig ANDROID 1:430029536167:android:793f7a1ed1fe4134c6d482
+[debug] [2026-03-24T18:50:46.587Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:50:46.587Z] Platform:      win32
+[debug] [2026-03-24T18:50:46.587Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:50:46.588Z] Time:          Tue Mar 24 2026 12:50:46 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:50:46.588Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:50:46.594Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:50:46.595Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T18:50:46.599Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:50:46.599Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:50:46.600Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/androidApps/1:430029536167:android:793f7a1ed1fe4134c6d482/config [none]
+[debug] [2026-03-24T18:50:47.240Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T18:50:47.243Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js apps:sdkconfig IOS 1:430029536167:ios:8d6059895561893fc6d482
+[debug] [2026-03-24T18:50:47.243Z] CLI Version:   14.17.0
+[debug] [2026-03-24T18:50:47.244Z] Platform:      win32
+[debug] [2026-03-24T18:50:47.244Z] Node Version:  v24.9.0
+[debug] [2026-03-24T18:50:47.244Z] Time:          Tue Mar 24 2026 12:50:47 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T18:50:47.244Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T18:50:47.251Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T18:50:47.252Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T18:50:47.257Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:50:47.257Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T18:50:47.259Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/-/iosApps/1:430029536167:ios:8d6059895561893fc6d482/config [none]
+[debug] [2026-03-24T18:50:47.347Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/androidApps/1:430029536167:android:793f7a1ed1fe4134c6d482/config 200
+[debug] [2026-03-24T18:50:47.347Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/androidApps/1:430029536167:android:793f7a1ed1fe4134c6d482/config {"configFilename":"google-services.json","configFileContents":"ewogICJwcm9qZWN0X2luZm8iOiB7CiAgICAicHJvamVjdF9udW1iZXIiOiAiNDMwMDI5NTM2MTY3IiwKICAgICJwcm9qZWN0X2lkIjogInBhaS1wcm9qZWN0LWFpIiwKICAgICJzdG9yYWdlX2J1Y2tldCI6ICJwYWktcHJvamVjdC1haS5maXJlYmFzZXN0b3JhZ2UuYXBwIgogIH0sCiAgImNsaWVudCI6IFsKICAgIHsKICAgICAgImNsaWVudF9pbmZvIjogewogICAgICAgICJtb2JpbGVzZGtfYXBwX2lkIjogIjE6NDMwMDI5NTM2MTY3OmFuZHJvaWQ6NzkzZjdhMWVkMWZlNDEzNGM2ZDQ4MiIsCiAgICAgICAgImFuZHJvaWRfY2xpZW50X2luZm8iOiB7CiAgICAgICAgICAicGFja2FnZV9uYW1lIjogImNvbS5leGFtcGxlLnBhaSIKICAgICAgICB9CiAgICAgIH0sCiAgICAgICJvYXV0aF9jbGllbnQiOiBbXSwKICAgICAgImFwaV9rZXkiOiBbCiAgICAgICAgewogICAgICAgICAgImN1cnJlbnRfa2V5IjogIkFJemFTeUJCREJyWWk2WXRNb1VlVnVLVmNXWEdBcjZ6X05GX1E4NCIKICAgICAgICB9CiAgICAgIF0sCiAgICAgICJzZXJ2aWNlcyI6IHsKICAgICAgICAiYXBwaW52aXRlX3NlcnZpY2UiOiB7CiAgICAgICAgICAib3RoZXJfcGxhdGZvcm1fb2F1dGhfY2xpZW50IjogW10KICAgICAgICB9CiAgICAgIH0KICAgIH0KICBdLAogICJjb25maWd1cmF0aW9uX3ZlcnNpb24iOiAiMSIKfQ=="}
+[info] {
+  "project_info": {
+    "project_number": "430029536167",
+    "project_id": "pai-project-ai",
+    "storage_bucket": "pai-project-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:430029536167:android:793f7a1ed1fe4134c6d482",
+        "android_client_info": {
+          "package_name": "com.example.pai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBDBrYi6YtMoUeVuKVcWXGAr6z_NF_Q84"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+[debug] [2026-03-24T18:50:47.818Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/-/iosApps/1:430029536167:ios:8d6059895561893fc6d482/config 200
+[debug] [2026-03-24T18:50:47.818Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/-/iosApps/1:430029536167:ios:8d6059895561893fc6d482/config {"configFilename":"GoogleService-Info.plist","configFileContents":"PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+QVBJX0tFWTwva2V5PgoJPHN0cmluZz5BSXphU3lEVHNselJVenB3M1Rfa1JhOEUtaEd4Uncwb3AybjUxQnc8L3N0cmluZz4KCTxrZXk+R0NNX1NFTkRFUl9JRDwva2V5PgoJPHN0cmluZz40MzAwMjk1MzYxNjc8L3N0cmluZz4KCTxrZXk+UExJU1RfVkVSU0lPTjwva2V5PgoJPHN0cmluZz4xPC9zdHJpbmc+Cgk8a2V5PkJVTkRMRV9JRDwva2V5PgoJPHN0cmluZz5jb20uZXhhbXBsZS5wYWk8L3N0cmluZz4KCTxrZXk+UFJPSkVDVF9JRDwva2V5PgoJPHN0cmluZz5wYWktcHJvamVjdC1haTwvc3RyaW5nPgoJPGtleT5TVE9SQUdFX0JVQ0tFVDwva2V5PgoJPHN0cmluZz5wYWktcHJvamVjdC1haS5maXJlYmFzZXN0b3JhZ2UuYXBwPC9zdHJpbmc+Cgk8a2V5PklTX0FEU19FTkFCTEVEPC9rZXk+Cgk8ZmFsc2U+PC9mYWxzZT4KCTxrZXk+SVNfQU5BTFlUSUNTX0VOQUJMRUQ8L2tleT4KCTxmYWxzZT48L2ZhbHNlPgoJPGtleT5JU19BUFBJTlZJVEVfRU5BQkxFRDwva2V5PgoJPHRydWU+PC90cnVlPgoJPGtleT5JU19HQ01fRU5BQkxFRDwva2V5PgoJPHRydWU+PC90cnVlPgoJPGtleT5JU19TSUdOSU5fRU5BQkxFRDwva2V5PgoJPHRydWU+PC90cnVlPgoJPGtleT5HT09HTEVfQVBQX0lEPC9rZXk+Cgk8c3RyaW5nPjE6NDMwMDI5NTM2MTY3Omlvczo4ZDYwNTk4OTU1NjE4OTNmYzZkNDgyPC9zdHJpbmc+CjwvZGljdD4KPC9wbGlzdD4="}
+[info] <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDTslzRUzpw3T_kRa8E-hGxRw0op2n51Bw</string>
+	<key>GCM_SENDER_ID</key>
+	<string>430029536167</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.pai</string>
+	<key>PROJECT_ID</key>
+	<string>pai-project-ai</string>
+	<key>STORAGE_BUCKET</key>
+	<string>pai-project-ai.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:430029536167:ios:8d6059895561893fc6d482</string>
+</dict>
+</plist>
+[debug] [2026-03-24T19:16:56.757Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:16:56.762Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js help firestore:databases:list
+[debug] [2026-03-24T19:16:56.762Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:16:56.762Z] Platform:      win32
+[debug] [2026-03-24T19:16:56.762Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:16:56.762Z] Time:          Tue Mar 24 2026 13:16:56 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:16:56.762Z] ----------------------------------------------------------------------
+[debug] 
+[info]  Privacy Policy: https://firebase.google.com/support/privacy
+[info] 
+[debug] [2026-03-24T19:19:54.126Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:19:54.129Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:databases:list --project pai-project-ai
+[debug] [2026-03-24T19:19:54.130Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:19:54.130Z] Platform:      win32
+[debug] [2026-03-24T19:19:54.130Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:19:54.130Z] Time:          Tue Mar 24 2026 13:19:54 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:19:54.130Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T19:19:54.139Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T19:19:54.140Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T19:19:54.141Z] [iam] checking project pai-project-ai for permissions ["datastore.databases.list","firebase.projects.get"]
+[debug] [2026-03-24T19:19:54.143Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:19:54.143Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:19:54.145Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions [none]
+[debug] [2026-03-24T19:19:54.145Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions x-goog-quota-user=projects/pai-project-ai
+[debug] [2026-03-24T19:19:54.145Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.databases.list","firebase.projects.get"]}
+[debug] [2026-03-24T19:19:54.425Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions 200
+[debug] [2026-03-24T19:19:54.426Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.databases.list","firebase.projects.get"]}
+[debug] [2026-03-24T19:19:54.426Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:19:54.426Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:19:54.427Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/databases [none]
+[debug] [2026-03-24T19:19:54.869Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/databases 200
+[debug] [2026-03-24T19:19:54.870Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/databases {}
+[info] No databases found.
+[debug] [2026-03-24T19:20:55.021Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:20:55.024Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js help firestore:databases:create
+[debug] [2026-03-24T19:20:55.024Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:20:55.025Z] Platform:      win32
+[debug] [2026-03-24T19:20:55.025Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:20:55.025Z] Time:          Tue Mar 24 2026 13:20:55 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:20:55.025Z] ----------------------------------------------------------------------
+[debug] 
+[info]  Privacy Policy: https://firebase.google.com/support/privacy
+[info] 
+[debug] [2026-03-24T19:21:11.621Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:21:11.626Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:locations
+[debug] [2026-03-24T19:21:11.626Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:21:11.626Z] Platform:      win32
+[debug] [2026-03-24T19:21:11.626Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:21:11.626Z] Time:          Tue Mar 24 2026 13:21:11 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:21:11.626Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T19:21:11.634Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:21:11.635Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:21:11.637Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/null/locations [none]
+[debug] [2026-03-24T19:21:11.961Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/null/locations 403
+[debug] [2026-03-24T19:21:11.961Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/null/locations {"error":{"code":403,"message":"Permission denied on resource project null.","status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONSUMER_INVALID","domain":"googleapis.com","metadata":{"service":"firestore.googleapis.com","consumer":"projects/null","containerInfo":"null"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Permission denied on resource project null."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console","url":"https://console.developers.google.com"}]}]}}
+[error] 
+[error] Error: Request to https://firestore.googleapis.com/v1/projects/null/locations had HTTP Error: 403, Permission denied on resource project null.
+[debug] [2026-03-24T19:21:12.100Z] Error Context: {
+  "body": {
+    "error": {
+      "code": 403,
+      "message": "Permission denied on resource project null.",
+      "status": "PERMISSION_DENIED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+          "reason": "CONSUMER_INVALID",
+          "domain": "googleapis.com",
+          "metadata": {
+            "service": "firestore.googleapis.com",
+            "consumer": "projects/null",
+            "containerInfo": "null"
+          }
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.LocalizedMessage",
+          "locale": "en-US",
+          "message": "Permission denied on resource project null."
+        },
+        {
+          "@type": "type.googleapis.com/google.rpc.Help",
+          "links": [
+            {
+              "description": "Google developers console",
+              "url": "https://console.developers.google.com"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "response": {
+    "statusCode": 403
+  }
+}
+[debug] [2026-03-24T19:22:20.720Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:22:20.725Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:locations --project pai-project-ai
+[debug] [2026-03-24T19:22:20.726Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:22:20.726Z] Platform:      win32
+[debug] [2026-03-24T19:22:20.726Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:22:20.727Z] Time:          Tue Mar 24 2026 13:22:20 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:22:20.727Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T19:22:20.736Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T19:22:20.737Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T19:22:20.737Z] [iam] checking project pai-project-ai for permissions ["datastore.locations.list","firebase.projects.get"]
+[debug] [2026-03-24T19:22:20.739Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:22:20.739Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:22:20.741Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions [none]
+[debug] [2026-03-24T19:22:20.741Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions x-goog-quota-user=projects/pai-project-ai
+[debug] [2026-03-24T19:22:20.741Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.locations.list","firebase.projects.get"]}
+[debug] [2026-03-24T19:22:21.066Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions 200
+[debug] [2026-03-24T19:22:21.067Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.locations.list","firebase.projects.get"]}
+[debug] [2026-03-24T19:22:21.068Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:22:21.068Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:22:21.068Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/locations [none]
+[debug] [2026-03-24T19:22:21.272Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/locations 200
+[debug] [2026-03-24T19:22:21.272Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/locations {"locations":[{"name":"projects/pai-project-ai/locations/eur3","labels":{"appengine.googleapis.com/geo":"europe-west","cloud.googleapis.com/location":"eur3","cloud.googleapis.com/geo":"eur3"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"eur3","displayName":"Europe"},{"name":"projects/pai-project-ai/locations/nam5","labels":{"appengine.googleapis.com/geo":"us-central","cloud.googleapis.com/location":"nam5","cloud.googleapis.com/geo":"nam5"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"nam5","displayName":"United States"},{"name":"projects/pai-project-ai/locations/nam7","labels":{"cloud.googleapis.com/location":"nam7","cloud.googleapis.com/geo":"nam7"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"nam7","displayName":"United States"},{"name":"projects/pai-project-ai/locations/africa-south1","labels":{"cloud.googleapis.com/location":"africa-south1","cloud.googleapis.com/region":"africa-south1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"africa-south1","displayName":"Johannesburg"},{"name":"projects/pai-project-ai/locations/asia-east1","labels":{"appengine.googleapis.com/region":"asia-east1","cloud.googleapis.com/location":"asia-east1","cloud.googleapis.com/region":"asia-east1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-east1","displayName":"Taiwan"},{"name":"projects/pai-project-ai/locations/asia-east2","labels":{"appengine.googleapis.com/region":"asia-east2","cloud.googleapis.com/location":"asia-east2","cloud.googleapis.com/region":"asia-east2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-east2","displayName":"Hong Kong"},{"name":"projects/pai-project-ai/locations/asia-northeast1","labels":{"appengine.googleapis.com/region":"asia-northeast1","cloud.googleapis.com/location":"asia-northeast1","cloud.googleapis.com/region":"asia-northeast1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-northeast1","displayName":"Tokyo"},{"name":"projects/pai-project-ai/locations/asia-northeast2","labels":{"appengine.googleapis.com/region":"asia-northeast2","cloud.googleapis.com/location":"asia-northeast2","cloud.googleapis.com/region":"asia-northeast2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-northeast2","displayName":"Osaka"},{"name":"projects/pai-project-ai/locations/asia-northeast3","labels":{"appengine.googleapis.com/region":"asia-northeast3","cloud.googleapis.com/location":"asia-northeast3","cloud.googleapis.com/region":"asia-northeast3"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-northeast3","displayName":"Seoul"},{"name":"projects/pai-project-ai/locations/asia-south1","labels":{"appengine.googleapis.com/region":"asia-south1","cloud.googleapis.com/location":"asia-south1","cloud.googleapis.com/region":"asia-south1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-south1","displayName":"Mumbai"},{"name":"projects/pai-project-ai/locations/asia-south2","labels":{"cloud.googleapis.com/location":"asia-south2","cloud.googleapis.com/region":"asia-south2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-south2","displayName":"Delhi"},{"name":"projects/pai-project-ai/locations/asia-southeast1","labels":{"appengine.googleapis.com/region":"asia-southeast1","cloud.googleapis.com/location":"asia-southeast1","cloud.googleapis.com/region":"asia-southeast1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-southeast1","displayName":"Singapore"},{"name":"projects/pai-project-ai/locations/asia-southeast2","labels":{"appengine.googleapis.com/region":"asia-southeast2","cloud.googleapis.com/location":"asia-southeast2","cloud.googleapis.com/region":"asia-southeast2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-southeast2","displayName":"Jakarta"},{"name":"projects/pai-project-ai/locations/asia-southeast3","labels":{"cloud.googleapis.com/location":"asia-southeast3","cloud.googleapis.com/region":"asia-southeast3"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"asia-southeast3","displayName":"Bangkok"},{"name":"projects/pai-project-ai/locations/australia-southeast1","labels":{"appengine.googleapis.com/region":"australia-southeast1","cloud.googleapis.com/location":"australia-southeast1","cloud.googleapis.com/region":"australia-southeast1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"australia-southeast1","displayName":"Sydney"},{"name":"projects/pai-project-ai/locations/australia-southeast2","labels":{"cloud.googleapis.com/location":"australia-southeast2","cloud.googleapis.com/region":"australia-southeast2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"australia-southeast2","displayName":"Melbourne"},{"name":"projects/pai-project-ai/locations/europe-central2","labels":{"appengine.googleapis.com/region":"europe-central2","cloud.googleapis.com/location":"europe-central2","cloud.googleapis.com/region":"europe-central2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-central2","displayName":"Warsaw"},{"name":"projects/pai-project-ai/locations/europe-north1","labels":{"cloud.googleapis.com/location":"europe-north1","cloud.googleapis.com/region":"europe-north1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-north1","displayName":"Finland"},{"name":"projects/pai-project-ai/locations/europe-north2","labels":{"cloud.googleapis.com/location":"europe-north2","cloud.googleapis.com/region":"europe-north2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-north2","displayName":"Stockholm"},{"name":"projects/pai-project-ai/locations/europe-southwest1","labels":{"cloud.googleapis.com/location":"europe-southwest1","cloud.googleapis.com/region":"europe-southwest1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-southwest1","displayName":"Madrid"},{"name":"projects/pai-project-ai/locations/europe-west1","labels":{"cloud.googleapis.com/location":"europe-west1","cloud.googleapis.com/region":"europe-west1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west1","displayName":"Belgium"},{"name":"projects/pai-project-ai/locations/europe-west10","labels":{"cloud.googleapis.com/location":"europe-west10","cloud.googleapis.com/region":"europe-west10"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west10","displayName":"Berlin"},{"name":"projects/pai-project-ai/locations/europe-west12","labels":{"cloud.googleapis.com/location":"europe-west12","cloud.googleapis.com/region":"europe-west12"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west12","displayName":"Turin"},{"name":"projects/pai-project-ai/locations/europe-west2","labels":{"appengine.googleapis.com/region":"europe-west2","cloud.googleapis.com/location":"europe-west2","cloud.googleapis.com/region":"europe-west2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west2","displayName":"London"},{"name":"projects/pai-project-ai/locations/europe-west3","labels":{"appengine.googleapis.com/region":"europe-west3","cloud.googleapis.com/location":"europe-west3","cloud.googleapis.com/region":"europe-west3"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west3","displayName":"Frankfurt"},{"name":"projects/pai-project-ai/locations/europe-west4","labels":{"cloud.googleapis.com/location":"europe-west4","cloud.googleapis.com/region":"europe-west4"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west4","displayName":"Netherlands"},{"name":"projects/pai-project-ai/locations/europe-west6","labels":{"appengine.googleapis.com/region":"europe-west6","cloud.googleapis.com/location":"europe-west6","cloud.googleapis.com/region":"europe-west6"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west6","displayName":"Zurich"},{"name":"projects/pai-project-ai/locations/europe-west8","labels":{"cloud.googleapis.com/location":"europe-west8","cloud.googleapis.com/region":"europe-west8"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west8","displayName":"Milan"},{"name":"projects/pai-project-ai/locations/europe-west9","labels":{"cloud.googleapis.com/location":"europe-west9","cloud.googleapis.com/region":"europe-west9"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"europe-west9","displayName":"Paris"},{"name":"projects/pai-project-ai/locations/me-central1","labels":{"cloud.googleapis.com/location":"me-central1","cloud.googleapis.com/region":"me-central1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"me-central1","displayName":"Doha"},{"name":"projects/pai-project-ai/locations/me-central2","labels":{"cloud.googleapis.com/location":"me-central2","cloud.googleapis.com/region":"me-central2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"me-central2","displayName":"Dammam"},{"name":"projects/pai-project-ai/locations/me-west1","labels":{"cloud.googleapis.com/location":"me-west1","cloud.googleapis.com/region":"me-west1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"me-west1","displayName":"Tel Aviv"},{"name":"projects/pai-project-ai/locations/northamerica-northeast1","labels":{"appengine.googleapis.com/region":"northamerica-northeast1","cloud.googleapis.com/location":"northamerica-northeast1","cloud.googleapis.com/region":"northamerica-northeast1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"northamerica-northeast1","displayName":"Montréal"},{"name":"projects/pai-project-ai/locations/northamerica-northeast2","labels":{"cloud.googleapis.com/location":"northamerica-northeast2","cloud.googleapis.com/region":"northamerica-northeast2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"northamerica-northeast2","displayName":"Toronto"},{"name":"projects/pai-project-ai/locations/northamerica-south1","labels":{"cloud.googleapis.com/location":"northamerica-south1","cloud.googleapis.com/region":"northamerica-south1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"northamerica-south1","displayName":"Mexico"},{"name":"projects/pai-project-ai/locations/southamerica-east1","labels":{"appengine.googleapis.com/region":"southamerica-east1","cloud.googleapis.com/location":"southamerica-east1","cloud.googleapis.com/region":"southamerica-east1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"southamerica-east1","displayName":"São Paulo"},{"name":"projects/pai-project-ai/locations/southamerica-west1","labels":{"cloud.googleapis.com/location":"southamerica-west1","cloud.googleapis.com/region":"southamerica-west1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"southamerica-west1","displayName":"Santiago"},{"name":"projects/pai-project-ai/locations/us-central1","labels":{"cloud.googleapis.com/location":"us-central1","cloud.googleapis.com/region":"us-central1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-central1","displayName":"Iowa"},{"name":"projects/pai-project-ai/locations/us-east1","labels":{"appengine.googleapis.com/region":"us-east1","cloud.googleapis.com/location":"us-east1","cloud.googleapis.com/region":"us-east1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-east1","displayName":"South Carolina"},{"name":"projects/pai-project-ai/locations/us-east4","labels":{"appengine.googleapis.com/region":"us-east4","cloud.googleapis.com/location":"us-east4","cloud.googleapis.com/region":"us-east4"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-east4","displayName":"Northern Virginia"},{"name":"projects/pai-project-ai/locations/us-east5","labels":{"cloud.googleapis.com/location":"us-east5","cloud.googleapis.com/region":"us-east5"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-east5","displayName":"Columbus"},{"name":"projects/pai-project-ai/locations/us-south1","labels":{"cloud.googleapis.com/location":"us-south1","cloud.googleapis.com/region":"us-south1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-south1","displayName":"Dallas"},{"name":"projects/pai-project-ai/locations/us-west1","labels":{"appengine.googleapis.com/region":"us-west1","cloud.googleapis.com/location":"us-west1","cloud.googleapis.com/region":"us-west1"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-west1","displayName":"Oregon"},{"name":"projects/pai-project-ai/locations/us-west2","labels":{"appengine.googleapis.com/region":"us-west2","cloud.googleapis.com/location":"us-west2","cloud.googleapis.com/region":"us-west2"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-west2","displayName":"Los Angeles"},{"name":"projects/pai-project-ai/locations/us-west3","labels":{"appengine.googleapis.com/region":"us-west3","cloud.googleapis.com/location":"us-west3","cloud.googleapis.com/region":"us-west3"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-west3","displayName":"Salt Lake City"},{"name":"projects/pai-project-ai/locations/us-west4","labels":{"appengine.googleapis.com/region":"us-west4","cloud.googleapis.com/location":"us-west4","cloud.googleapis.com/region":"us-west4"},"metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.LocationMetadata"},"locationId":"us-west4","displayName":"Las Vegas"}]}
+[info] ┌────────────────────┬──────────────────────────────┐
+│ Display Name       │ LocationId                   │
+├────────────────────┼──────────────────────────────┤
+│ Johannesburg       │ africa-south1                │
+├────────────────────┼──────────────────────────────┤
+│ Taiwan             │ asia-east1                   │
+├────────────────────┼──────────────────────────────┤
+│ Hong Kong          │ asia-east2                   │
+├────────────────────┼──────────────────────────────┤
+│ Tokyo              │ asia-northeast1              │
+├────────────────────┼──────────────────────────────┤
+│ Osaka              │ asia-northeast2              │
+├────────────────────┼──────────────────────────────┤
+│ Seoul              │ asia-northeast3              │
+├────────────────────┼──────────────────────────────┤
+│ Mumbai             │ asia-south1                  │
+├────────────────────┼──────────────────────────────┤
+│ Delhi              │ asia-south2                  │
+├────────────────────┼──────────────────────────────┤
+│ Singapore          │ asia-southeast1              │
+├────────────────────┼──────────────────────────────┤
+│ Jakarta            │ asia-southeast2              │
+├────────────────────┼──────────────────────────────┤
+│ Bangkok            │ asia-southeast3              │
+├────────────────────┼──────────────────────────────┤
+│ Sydney             │ australia-southeast1         │
+├────────────────────┼──────────────────────────────┤
+│ Melbourne          │ australia-southeast2         │
+├────────────────────┼──────────────────────────────┤
+│ Europe             │ eur3                         │
+├────────────────────┼──────────────────────────────┤
+│ Warsaw             │ europe-central2              │
+├────────────────────┼──────────────────────────────┤
+│ Finland            │ europe-north1                │
+├────────────────────┼──────────────────────────────┤
+│ Stockholm          │ europe-north2                │
+├────────────────────┼──────────────────────────────┤
+│ Madrid             │ europe-southwest1            │
+├────────────────────┼──────────────────────────────┤
+│ Belgium            │ europe-west1                 │
+├────────────────────┼──────────────────────────────┤
+│ Berlin             │ europe-west10                │
+├────────────────────┼──────────────────────────────┤
+│ Turin              │ europe-west12                │
+├────────────────────┼──────────────────────────────┤
+│ London             │ europe-west2                 │
+├────────────────────┼──────────────────────────────┤
+│ Frankfurt          │ europe-west3                 │
+├────────────────────┼──────────────────────────────┤
+│ Netherlands        │ europe-west4                 │
+├────────────────────┼──────────────────────────────┤
+│ Zurich             │ europe-west6                 │
+├────────────────────┼──────────────────────────────┤
+│ Milan              │ europe-west8                 │
+├────────────────────┼──────────────────────────────┤
+│ Paris              │ europe-west9                 │
+├────────────────────┼──────────────────────────────┤
+│ Doha               │ me-central1                  │
+├────────────────────┼──────────────────────────────┤
+│ Dammam             │ me-central2                  │
+├────────────────────┼──────────────────────────────┤
+│ Tel Aviv           │ me-west1                     │
+├────────────────────┼──────────────────────────────┤
+│ United States      │ nam5                         │
+├────────────────────┼──────────────────────────────┤
+│ United States      │ nam7                         │
+├────────────────────┼──────────────────────────────┤
+│ Montréal           │ northamerica-northeast1      │
+├────────────────────┼──────────────────────────────┤
+│ Toronto            │ northamerica-northeast2      │
+├────────────────────┼──────────────────────────────┤
+│ Mexico             │ northamerica-south1          │
+├────────────────────┼──────────────────────────────┤
+│ São Paulo          │ southamerica-east1           │
+├────────────────────┼──────────────────────────────┤
+│ Santiago           │ southamerica-west1           │
+├────────────────────┼──────────────────────────────┤
+│ Iowa               │ us-central1                  │
+├────────────────────┼──────────────────────────────┤
+│ South Carolina     │ us-east1                     │
+├────────────────────┼──────────────────────────────┤
+│ Northern Virginia  │ us-east4                     │
+├────────────────────┼──────────────────────────────┤
+│ Columbus           │ us-east5                     │
+├────────────────────┼──────────────────────────────┤
+│ Dallas             │ us-south1                    │
+├────────────────────┼──────────────────────────────┤
+│ Oregon             │ us-west1                     │
+├────────────────────┼──────────────────────────────┤
+│ Los Angeles        │ us-west2                     │
+├────────────────────┼──────────────────────────────┤
+│ Salt Lake City     │ us-west3                     │
+├────────────────────┼──────────────────────────────┤
+│ Las Vegas          │ us-west4                     │
+└────────────────────┴──────────────────────────────┘
+[debug] [2026-03-24T19:23:35.973Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:23:35.976Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:databases:create (default) --location nam5 --project pai-project-ai
+[debug] [2026-03-24T19:23:35.977Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:23:35.977Z] Platform:      win32
+[debug] [2026-03-24T19:23:35.977Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:23:35.977Z] Time:          Tue Mar 24 2026 13:23:35 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:23:35.977Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T19:23:35.984Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T19:23:35.985Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T19:23:35.985Z] [iam] checking project pai-project-ai for permissions ["datastore.databases.create","firebase.projects.get"]
+[debug] [2026-03-24T19:23:35.987Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:23:35.988Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:23:35.989Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions [none]
+[debug] [2026-03-24T19:23:35.990Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions x-goog-quota-user=projects/pai-project-ai
+[debug] [2026-03-24T19:23:35.990Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.databases.create","firebase.projects.get"]}
+[debug] [2026-03-24T19:23:36.214Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions 200
+[debug] [2026-03-24T19:23:36.215Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.databases.create","firebase.projects.get"]}
+[debug] [2026-03-24T19:23:36.215Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:23:36.215Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:23:36.216Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/pai-project-ai/databases databaseId=%28default%29
+[debug] [2026-03-24T19:23:36.216Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pai-project-ai/databases {"locationId":"nam5","type":"FIRESTORE_NATIVE","databaseEdition":"STANDARD","deleteProtectionState":"DELETE_PROTECTION_DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED"}
+[debug] [2026-03-24T19:23:37.984Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/pai-project-ai/databases 200
+[debug] [2026-03-24T19:23:37.984Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/pai-project-ai/databases {"name":"projects/pai-project-ai/databases/(default)/operations/wnXzLSiCMo4QR3MD8hq05xAqNW1hbgQiBRAK3sHAEAbOi8mkCAsKJxo","metadata":{"@type":"type.googleapis.com/google.firestore.admin.v1.CreateDatabaseMetadata"},"done":true,"response":{"@type":"type.googleapis.com/google.firestore.admin.v1.Database","name":"projects/pai-project-ai/databases/(default)","uid":"e7b41af2-0373-4710-8e32-82282df375c2","createTime":"2026-03-24T19:23:16.022520Z","updateTime":"2026-03-24T19:23:16.022520Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-03-24T19:23:16.022520Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IMGToKqhuZMDMPiRn6qhuZMD"}}
+[info] Successfully created projects/pai-project-ai/databases/(default)
+[info] Please be sure to configure Firebase rules in your Firebase config file for
+the new database. By default, created databases will have closed rules that
+block any incoming third-party traffic.
+[info] Your database may be viewed at https://console.firebase.google.com/project/pai-project-ai/firestore/databases/-default-/data
+[debug] [2026-03-24T19:28:10.147Z] ----------------------------------------------------------------------
+[debug] [2026-03-24T19:28:10.150Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\talma\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js firestore:databases:list --project pai-project-ai
+[debug] [2026-03-24T19:28:10.151Z] CLI Version:   14.17.0
+[debug] [2026-03-24T19:28:10.151Z] Platform:      win32
+[debug] [2026-03-24T19:28:10.151Z] Node Version:  v24.9.0
+[debug] [2026-03-24T19:28:10.151Z] Time:          Tue Mar 24 2026 13:28:10 GMT-0600 (Mountain Daylight Time)
+[debug] [2026-03-24T19:28:10.151Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-24T19:28:10.159Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-24T19:28:10.160Z] > authorizing via signed-in user (talmage.kay@gmail.com)
+[debug] [2026-03-24T19:28:10.160Z] [iam] checking project pai-project-ai for permissions ["datastore.databases.list","firebase.projects.get"]
+[debug] [2026-03-24T19:28:10.162Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:28:10.163Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:28:10.164Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions [none]
+[debug] [2026-03-24T19:28:10.164Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions x-goog-quota-user=projects/pai-project-ai
+[debug] [2026-03-24T19:28:10.165Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.databases.list","firebase.projects.get"]}
+[debug] [2026-03-24T19:28:10.490Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions 200
+[debug] [2026-03-24T19:28:10.490Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/pai-project-ai:testIamPermissions {"permissions":["datastore.databases.list","firebase.projects.get"]}
+[debug] [2026-03-24T19:28:10.491Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:28:10.491Z] Checked if tokens are valid: true, expires at: 1774381608686
+[debug] [2026-03-24T19:28:10.492Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/databases [none]
+[debug] [2026-03-24T19:28:10.948Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/databases 200
+[debug] [2026-03-24T19:28:10.949Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/pai-project-ai/databases {"databases":[{"name":"projects/pai-project-ai/databases/(default)","uid":"e7b41af2-0373-4710-8e32-82282df375c2","createTime":"2026-03-24T19:23:16.022520Z","updateTime":"2026-03-24T19:23:16.022520Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-03-24T19:23:16.022520Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IJuDpayiuZMDMPKi66qhuZMD"}]}
+[info] ┌────────────────────────────────────────────────┐
+│ Database Name                                  │
+├────────────────────────────────────────────────┤
+│ projects/pai-project-ai/databases/(default)    │
+└────────────────────────────────────────────────┘

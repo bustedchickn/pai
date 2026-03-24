@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    required this.showWorkspaceStats,
+    required this.onShowWorkspaceStatsChanged,
+  });
+
+  final bool showWorkspaceStats;
+  final ValueChanged<bool> onShowWorkspaceStatsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +24,17 @@ class SettingsScreen extends StatelessWidget {
               ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
+            Card(
+              child: SwitchListTile.adaptive(
+                secondary: const Icon(Icons.bar_chart_rounded),
+                value: showWorkspaceStats,
+                onChanged: onShowWorkspaceStatsChanged,
+                title: const Text('Show workspace stats'),
+                subtitle: const Text(
+                  'Display summary stats at the top of the workspace',
+                ),
+              ),
+            ),
             const Card(
               child: ListTile(
                 leading: Icon(Icons.sync_outlined),

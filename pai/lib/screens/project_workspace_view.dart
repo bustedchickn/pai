@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,11 @@ import '../widgets/project_page_editor.dart';
 import '../widgets/status_chip.dart';
 
 const Duration kProjectsQuickAnimation = Duration(milliseconds: 220);
+const Duration _kProjectSwitchDuration = Duration(milliseconds: 360);
+const double _kProjectSwitchOutgoingScale = 0.92;
+const double _kProjectSwitchIncomingScale = 0.96;
+const double _kProjectSwitchMaxTranslation = 36;
+const Alignment _kProjectSwitchAlignment = Alignment(-0.7, -0.92);
 const double kWorkspaceSidebarExpandedWidth = 168;
 const double kWorkspaceSidebarCollapsedWidth = 56;
 const double kAssistantDrawerWidth = 380;
@@ -60,14 +66,22 @@ class ProjectWorkspaceView extends StatefulWidget {
   State<ProjectWorkspaceView> createState() => _ProjectWorkspaceViewState();
 }
 
-class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
+class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
+    with SingleTickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _assistantDrawerScaffoldKey =
       GlobalKey<ScaffoldState>();
+  final GlobalKey _projectTitleAnchorKey = GlobalKey();
+  final GlobalKey _projectSelectorAnchorKey = GlobalKey();
+  final GlobalKey _projectWorkspaceShellKey = GlobalKey();
   final TextEditingController _questionController = TextEditingController();
   final TextEditingController _sessionController = TextEditingController();
   final TextEditingController _pageContentController = TextEditingController();
   final FocusNode _pageContentFocusNode = FocusNode();
   late final BrowserSpeechToText _speechToText = createBrowserSpeechToText();
+  late final AnimationController _projectSwitchController =
+      AnimationController(vsync: this, duration: _kProjectSwitchDuration)
+        ..addListener(_handleProjectSwitchProgress)
+        ..addStatusListener(_handleProjectSwitchStatus);
   final Set<String> _completingNextSteps = <String>{};
   final Set<String> _selectedRecapTaskCandidates = <String>{};
 
@@ -83,6 +97,8 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
   bool _isSessionComposerVisible = false;
   bool _isSpeechToTextAvailable = false;
   bool _isSpeechToTextListening = false;
+  bool _hasAppliedQueuedProject = false;
+  String? _queuedProjectId;
   String _liveSessionTranscript = '';
   String _assistantReply =
       'Ask about this project to get a quick summary, blockers, or next steps.';
@@ -120,6 +136,10 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
 
   @override
   void dispose() {
+    _projectSwitchController
+      ..removeListener(_handleProjectSwitchProgress)
+      ..removeStatusListener(_handleProjectSwitchStatus)
+      ..dispose();
     _speechSubscription?.cancel();
     _speechListeningSubscription?.cancel();
     _speechToText.dispose();
@@ -242,8 +262,16 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
       return;
     }
 
-    _selectedProject = _projectForId(widget.selectedProjectId);
+    _applyProjectSelection(_projectForId(widget.selectedProjectId));
+  }
+
+  bool get _reduceProjectMotion =>
+      MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+  void _applyProjectSelection(Project project) {
+    _selectedProject = project;
     _resetProjectScopedUi();
+    _loadPageIntoEditor(_defaultPageForProject());
   }
 
   void _resetProjectScopedUi() {
@@ -259,6 +287,71 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
     _isSessionComposerVisible = false;
     _liveSessionTranscript = '';
     _pageContentController.clear();
+  }
+
+  void _queueProjectSwitch(Project project) {
+    if (project.id == _selectedProject.id &&
+        !_projectSwitchController.isAnimating) {
+      return;
+    }
+
+    if (_reduceProjectMotion) {
+      setState(() => _applyProjectSelection(project));
+      return;
+    }
+
+    _queuedProjectId = project.id;
+    if (_projectSwitchController.isAnimating) {
+      return;
+    }
+
+    _hasAppliedQueuedProject = false;
+    _projectSwitchController
+      ..duration = _kProjectSwitchDuration
+      ..forward(from: 0);
+    setState(() {});
+  }
+
+  void _handleProjectSwitchProgress() {
+    if (_hasAppliedQueuedProject || _projectSwitchController.value < 0.5) {
+      return;
+    }
+
+    final targetProjectId = _queuedProjectId;
+    if (targetProjectId == null) {
+      _hasAppliedQueuedProject = true;
+      return;
+    }
+
+    _hasAppliedQueuedProject = true;
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _applyProjectSelection(_projectForId(targetProjectId));
+      _queuedProjectId = null;
+    });
+  }
+
+  void _handleProjectSwitchStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) {
+      return;
+    }
+
+    _hasAppliedQueuedProject = false;
+    final queuedProjectId = _queuedProjectId;
+    if (!mounted ||
+        queuedProjectId == null ||
+        queuedProjectId == _selectedProject.id) {
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
+
+    _projectSwitchController.forward(from: 0);
+    setState(() {});
   }
 
   void _reconcilePendingSessionState() {
@@ -330,15 +423,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
   }
 
   void _selectProject(Project project) {
-    if (project.id == _selectedProject.id) {
-      return;
-    }
-
-    setState(() {
-      _selectedProject = project;
-      _resetProjectScopedUi();
-      _loadPageIntoEditor(_defaultPageForProject());
-    });
+    _queueProjectSwitch(project);
   }
 
   void _selectPage(_WorkspacePage page) {
@@ -447,11 +532,12 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
     final end = normalizedSelection.end.clamp(0, value.text.length);
     final before = value.text.substring(0, start);
     final after = value.text.substring(end);
-    final needsLeadingSpace = before.isNotEmpty &&
-        !RegExp(r'[\s(\[{]$').hasMatch(before);
+    final needsLeadingSpace =
+        before.isNotEmpty && !RegExp(r'[\s(\[{]$').hasMatch(before);
     final needsTrailingSpace =
         after.isNotEmpty && !RegExp(r'^[\s,.;:!?)]').hasMatch(after);
-    final inserted = '${needsLeadingSpace ? ' ' : ''}$text'
+    final inserted =
+        '${needsLeadingSpace ? ' ' : ''}$text'
         '${needsTrailingSpace ? ' ' : ''}';
     final updatedText = '$before$inserted$after';
     final caretOffset = before.length + inserted.length;
@@ -468,13 +554,29 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
     }
 
     if (selectedPage.kind == _WorkspacePageKind.brief) {
+      final updatedAt = DateTime.now();
       final updatedProject = _selectedProject.copyWith(
         brief: _pageContentController.text,
-        updatedAt: DateTime.now(),
+        updatedAt: updatedAt,
         lastOpenedPageId: selectedPage.id,
       );
       setState(() => _selectedProject = updatedProject);
-      await widget.onProjectSaved(updatedProject);
+      final briefDocument = ProjectDocument(
+        id: selectedPage.id,
+        projectId: _selectedProject.id,
+        title: selectedPage.title,
+        kind: ProjectPageKind.brief,
+        type: ProjectDocumentType.reference,
+        content: _pageContentController.text,
+        pinned: false,
+        createdAt: selectedPage.createdAt,
+        updatedAt: updatedAt,
+        orderIndex: 0,
+      );
+      await Future.wait<void>([
+        widget.onDocumentSaved(briefDocument),
+        widget.onProjectSaved(updatedProject),
+      ]);
       return;
     }
 
@@ -535,7 +637,8 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: Text(confirmLabel),
             ),
           ],
@@ -566,7 +669,10 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
     }
 
     await widget.onDocumentSaved(
-      selectedPage.document!.copyWith(title: nextTitle, updatedAt: DateTime.now()),
+      selectedPage.document!.copyWith(
+        title: nextTitle,
+        updatedAt: DateTime.now(),
+      ),
     );
   }
 
@@ -663,7 +769,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
     );
     await widget.onBookmarkSaved(bookmark);
     if (_selectedPage?.kind == _WorkspacePageKind.brief) {
-      final updatedProject = _selectedProject.copyWith(updatedAt: DateTime.now());
+      final updatedProject = _selectedProject.copyWith(
+        updatedAt: DateTime.now(),
+      );
       setState(() => _selectedProject = updatedProject);
       await widget.onProjectSaved(updatedProject);
     }
@@ -1003,6 +1111,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                 isShowingProjectHub: _isShowingProjectHub,
                 isSidebarExpanded: _isSidebarExpanded,
                 isAssistantDrawerOpen: _isAssistantDrawerOpen,
+                projectSwitchAnimation: _projectSwitchController,
+                isProjectSwitchAnimating: _projectSwitchController.isAnimating,
+                projectTitleAnchorKey: _projectTitleAnchorKey,
                 onProjectNamePressed: _toggleProjectHub,
                 onNewPage: () {
                   unawaited(_createPage());
@@ -1028,6 +1139,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                       pinnedPages: _pinnedPages,
                       documentPages: _documentPages,
                       isExpanded: !isWide || _isSidebarExpanded,
+                      projectSelectorAnchorKey: _projectSelectorAnchorKey,
                       onProjectSelected: _selectProject,
                       onPageSelected: _selectPage,
                     );
@@ -1041,7 +1153,8 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                       onCreatePage: () {
                         unawaited(_createPage());
                       },
-                      onRenamePage: selectedPage.kind == _WorkspacePageKind.document
+                      onRenamePage:
+                          selectedPage.kind == _WorkspacePageKind.document
                           ? () {
                               unawaited(_renameSelectedPage());
                             }
@@ -1052,7 +1165,8 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                               unawaited(_duplicateSelectedPage());
                             }
                           : null,
-                      onDeletePage: selectedPage.kind == _WorkspacePageKind.document
+                      onDeletePage:
+                          selectedPage.kind == _WorkspacePageKind.document
                           ? () {
                               unawaited(_deleteSelectedPage());
                             }
@@ -1081,8 +1195,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                       isSpeechToTextListening: _isSpeechToTextListening,
                       liveSessionTranscript: _liveSessionTranscript,
                       recapTaskCandidates: _recapTaskCandidates,
-                      selectedRecapTaskCandidates:
-                          _selectedRecapTaskCandidates,
+                      selectedRecapTaskCandidates: _selectedRecapTaskCandidates,
                       onShowSessionComposer: _showSessionComposer,
                       onToggleSpeechToText: () {
                         unawaited(_toggleSpeechToText());
@@ -1118,7 +1231,19 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                             child: sidebar,
                           ),
                           const SizedBox(width: 20),
-                          Expanded(child: mainPanel),
+                          Expanded(
+                            child: _ProjectWorkspaceSwitchTransition(
+                              key: ValueKey(
+                                'project-shell-${_selectedProject.id}',
+                              ),
+                              shellKey: _projectWorkspaceShellKey,
+                              primaryAnchorKey: _projectTitleAnchorKey,
+                              fallbackAnchorKey: _projectSelectorAnchorKey,
+                              animation: _projectSwitchController,
+                              enabled: _projectSwitchController.isAnimating,
+                              child: mainPanel,
+                            ),
+                          ),
                         ],
                       );
                     }
@@ -1127,7 +1252,19 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView> {
                       children: [
                         SizedBox(height: 300, child: sidebar),
                         const SizedBox(height: 16),
-                        Expanded(child: mainPanel),
+                        Expanded(
+                          child: _ProjectWorkspaceSwitchTransition(
+                            key: ValueKey(
+                              'project-shell-${_selectedProject.id}',
+                            ),
+                            shellKey: _projectWorkspaceShellKey,
+                            primaryAnchorKey: _projectTitleAnchorKey,
+                            fallbackAnchorKey: _projectSelectorAnchorKey,
+                            animation: _projectSwitchController,
+                            enabled: _projectSwitchController.isAnimating,
+                            child: mainPanel,
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -1149,6 +1286,9 @@ class _WorkspaceTopBar extends StatelessWidget {
     required this.isShowingProjectHub,
     required this.isSidebarExpanded,
     required this.isAssistantDrawerOpen,
+    required this.projectSwitchAnimation,
+    required this.isProjectSwitchAnimating,
+    required this.projectTitleAnchorKey,
     required this.onProjectNamePressed,
     required this.onNewPage,
     required this.onToggleAssistantDrawer,
@@ -1161,6 +1301,9 @@ class _WorkspaceTopBar extends StatelessWidget {
   final bool isShowingProjectHub;
   final bool isSidebarExpanded;
   final bool isAssistantDrawerOpen;
+  final Animation<double> projectSwitchAnimation;
+  final bool isProjectSwitchAnimating;
+  final GlobalKey projectTitleAnchorKey;
   final VoidCallback onProjectNamePressed;
   final VoidCallback onNewPage;
   final VoidCallback onToggleAssistantDrawer;
@@ -1168,15 +1311,75 @@ class _WorkspaceTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget projectTitleButton = KeyedSubtree(
+      key: projectTitleAnchorKey,
+      child: InkWell(
+        key: const ValueKey('project-hub-toggle'),
+        onTap: onProjectNamePressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  project.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                isShowingProjectHub
+                    ? Icons.flip_to_front_rounded
+                    : Icons.flip_to_back_rounded,
+                size: 18,
+                color: const Color(0xFF5A6B88),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (isProjectSwitchAnimating) {
+      projectTitleButton = AnimatedBuilder(
+        animation: projectSwitchAnimation,
+        child: projectTitleButton,
+        builder: (context, child) {
+          final pulse = math
+              .sin(projectSwitchAnimation.value * math.pi)
+              .clamp(0.0, 1.0);
+          final scale = lerpDouble(1.0, 1.016, pulse)!;
+          final highlightOpacity = lerpDouble(0.0, 0.12, pulse)!;
+          return Transform.scale(
+            scale: scale,
+            alignment: Alignment.centerLeft,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(
+                  0xFFDEE9FF,
+                ).withValues(alpha: highlightOpacity),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: child,
+            ),
+          );
+        },
+      );
+    }
+
     return Row(
       children: [
         IconButton(
           tooltip: isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar',
           onPressed: onToggleSidebar,
           icon: Icon(
-            isSidebarExpanded
-                ? Icons.menu_open_rounded
-                : Icons.menu_rounded,
+            isSidebarExpanded ? Icons.menu_open_rounded : Icons.menu_rounded,
           ),
         ),
         const SizedBox(width: 8),
@@ -1188,48 +1391,14 @@ class _WorkspaceTopBar extends StatelessWidget {
                 isShowingProjectHub
                     ? 'Projects / ${project.title} / Project Hub'
                     : 'Projects / ${project.title} / ${page.title}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF66758F),
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: const Color(0xFF66758F)),
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Flexible(
-                    child: InkWell(
-                      key: const ValueKey('project-hub-toggle'),
-                      onTap: onProjectNamePressed,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                project.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              isShowingProjectHub
-                                  ? Icons.flip_to_front_rounded
-                                  : Icons.flip_to_back_rounded,
-                              size: 18,
-                              color: const Color(0xFF5A6B88),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  Flexible(child: projectTitleButton),
                   const SizedBox(width: 10),
                   StatusChip(status: project.status),
                   if (isShowingProjectHub) ...[
@@ -1358,6 +1527,7 @@ class _WorkspaceSidebar extends StatelessWidget {
     required this.pinnedPages,
     required this.documentPages,
     required this.isExpanded,
+    required this.projectSelectorAnchorKey,
     required this.onProjectSelected,
     required this.onPageSelected,
   });
@@ -1369,6 +1539,7 @@ class _WorkspaceSidebar extends StatelessWidget {
   final List<_WorkspacePage> pinnedPages;
   final List<_WorkspacePage> documentPages;
   final bool isExpanded;
+  final GlobalKey projectSelectorAnchorKey;
   final ValueChanged<Project> onProjectSelected;
   final ValueChanged<_WorkspacePage> onPageSelected;
 
@@ -1409,6 +1580,7 @@ class _WorkspaceSidebar extends StatelessWidget {
                             ),
                         ],
                         child: Container(
+                          key: projectSelectorAnchorKey,
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -1448,6 +1620,7 @@ class _WorkspaceSidebar extends StatelessWidget {
                           ),
                       ],
                       child: CircleAvatar(
+                        key: projectSelectorAnchorKey,
                         radius: 22,
                         backgroundColor: const Color(0xFFEAF1FF),
                         child: Text(
@@ -1577,7 +1750,9 @@ class _WorkspacePageTile extends StatelessWidget {
             vertical: isExpanded ? 8 : 7,
           ),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFEFF4FF) : const Color(0xFFF9FBFF),
+            color: isSelected
+                ? const Color(0xFFEFF4FF)
+                : const Color(0xFFF9FBFF),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
@@ -1586,8 +1761,9 @@ class _WorkspacePageTile extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisAlignment:
-                isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: isExpanded
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
               Icon(
                 _iconForPage(page),
@@ -1604,7 +1780,9 @@ class _WorkspacePageTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                     ),
                   ),
                 ),
@@ -1614,6 +1792,118 @@ class _WorkspacePageTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ProjectWorkspaceSwitchTransition extends StatelessWidget {
+  const _ProjectWorkspaceSwitchTransition({
+    super.key,
+    required this.shellKey,
+    required this.primaryAnchorKey,
+    required this.fallbackAnchorKey,
+    required this.animation,
+    required this.enabled,
+    required this.child,
+  });
+
+  final GlobalKey shellKey;
+  final GlobalKey primaryAnchorKey;
+  final GlobalKey fallbackAnchorKey;
+  final Animation<double> animation;
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      key: shellKey,
+      child: IgnorePointer(
+        ignoring: enabled,
+        child: AnimatedBuilder(
+          animation: animation,
+          child: child,
+          builder: (context, child) {
+            if (!enabled || child == null) {
+              return child ?? const SizedBox.shrink();
+            }
+
+            final shellBox = shellKey.currentContext?.findRenderObject();
+            final anchorGlobal =
+                _globalCenterFor(primaryAnchorKey) ??
+                _globalCenterFor(fallbackAnchorKey);
+            if (shellBox is! RenderBox ||
+                !shellBox.hasSize ||
+                anchorGlobal == null) {
+              return child;
+            }
+
+            final shellSize = shellBox.size;
+            final shellTopLeft = shellBox.localToGlobal(Offset.zero);
+            final shellCenter = shellTopLeft + shellSize.center(Offset.zero);
+            final centerToAnchor = anchorGlobal - shellCenter;
+            final direction = _normalizedDirection(centerToAnchor);
+            final directionalOffset = direction * _kProjectSwitchMaxTranslation;
+
+            final progress = animation.value.clamp(0.0, 1.0);
+            final outgoingPhase = (progress / 0.45).clamp(0.0, 1.0);
+            final incomingPhase = ((progress - 0.55) / 0.45).clamp(0.0, 1.0);
+
+            double scale;
+            double opacity;
+            Offset offset;
+
+            if (progress <= 0.45) {
+              final curved = Curves.easeInCubic.transform(outgoingPhase);
+              scale = lerpDouble(1.0, _kProjectSwitchOutgoingScale, curved)!;
+              opacity = lerpDouble(1.0, 0.0, curved)!;
+              offset = Offset.lerp(Offset.zero, directionalOffset, curved)!;
+            } else if (progress < 0.55) {
+              final isOutgoingHold = progress < 0.5;
+              scale = isOutgoingHold
+                  ? _kProjectSwitchOutgoingScale
+                  : _kProjectSwitchIncomingScale;
+              opacity = 0.0;
+              offset = directionalOffset;
+            } else {
+              final curved = Curves.easeOutCubic.transform(incomingPhase);
+              scale = lerpDouble(_kProjectSwitchIncomingScale, 1.0, curved)!;
+              opacity = lerpDouble(0.0, 1.0, curved)!;
+              offset = Offset.lerp(directionalOffset, Offset.zero, curved)!;
+            }
+
+            return Opacity(
+              opacity: opacity.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: offset,
+                child: Transform.scale(
+                  alignment: _kProjectSwitchAlignment,
+                  scale: scale,
+                  child: child,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Offset? _globalCenterFor(GlobalKey key) {
+    final renderObject = key.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      return null;
+    }
+
+    return renderObject.localToGlobal(renderObject.size.center(Offset.zero));
+  }
+
+  Offset _normalizedDirection(Offset vector) {
+    final distance = vector.distance;
+    if (distance <= 0.001) {
+      return const Offset(-0.72, -0.68);
+    }
+
+    return Offset(vector.dx / distance, vector.dy / distance);
   }
 }
 
@@ -1630,7 +1920,8 @@ class _MainPanelFlipSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     return AnimatedSwitcher(
       duration: reduceMotion
@@ -1646,7 +1937,9 @@ class _MainPanelFlipSwitcher extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             ...previousChildren,
-            ...(currentChild != null ? <Widget>[currentChild] : const <Widget>[]),
+            ...(currentChild != null
+                ? <Widget>[currentChild]
+                : const <Widget>[]),
           ],
         );
       },
@@ -1752,9 +2045,9 @@ class _ProjectHubPane extends StatelessWidget {
           children: [
             Text(
               'Project Hub',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1867,7 +2160,8 @@ class _ProjectHubPane extends StatelessWidget {
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    if (isSpeechToTextListening || liveSessionTranscript.isNotEmpty)
+                    if (isSpeechToTextListening ||
+                        liveSessionTranscript.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Container(
@@ -1876,9 +2170,7 @@ class _ProjectHubPane extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFFBF2),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: const Color(0xFFF0DEC0),
-                            ),
+                            border: Border.all(color: const Color(0xFFF0DEC0)),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2019,9 +2311,9 @@ class _WorkspaceDrawer extends StatelessWidget {
           children: [
             Text(
               'Assistant',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             const Spacer(),
             IconButton(
@@ -2059,9 +2351,9 @@ class _WorkspaceDrawer extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       assistantReply,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.45,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(height: 1.45),
                     ),
                   ],
                 ),
@@ -2095,9 +2387,9 @@ class _DrawerSection extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
           child,
@@ -2137,7 +2429,10 @@ class _NextStepTile extends StatelessWidget {
               Checkbox(
                 value: isCompleting,
                 onChanged: isCompleting ? null : (_) => onCompleted(),
-                visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                visualDensity: const VisualDensity(
+                  horizontal: -4,
+                  vertical: -4,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(child: Text(step)),
@@ -2162,7 +2457,8 @@ class _RecentSessionsSection extends StatelessWidget {
 
     return Column(
       children: [
-        for (final session in sessions.take(6)) _SessionEntryCard(session: session),
+        for (final session in sessions.take(6))
+          _SessionEntryCard(session: session),
       ],
     );
   }
@@ -2222,9 +2518,9 @@ class _RecapTaskReview extends StatelessWidget {
         children: [
           Text(
             'Candidate tasks',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           for (final task in tasks)

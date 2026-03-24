@@ -34,8 +34,28 @@ class InMemoryPaiStore {
   List<BoardProject> listBoardProjects() =>
       List<BoardProject>.unmodifiable(_boardProjects);
 
+  void replaceProjects(List<Project> projects) {
+    _projects = List<Project>.from(projects);
+  }
+
+  void replaceBoardProjects(List<BoardProject> boardProjects) {
+    _boardProjects = List<BoardProject>.from(boardProjects);
+  }
+
+  void replaceProjectsAndBoardProjects({
+    required List<Project> projects,
+    required List<BoardProject> boardProjects,
+  }) {
+    replaceProjects(projects);
+    replaceBoardProjects(boardProjects);
+  }
+
   List<ProjectDocument> listDocuments() =>
       List<ProjectDocument>.unmodifiable(_documents);
+
+  void replaceDocuments(List<ProjectDocument> documents) {
+    _documents = List<ProjectDocument>.from(documents);
+  }
 
   List<ProjectDocument> listDocumentsForProject(String projectId) {
     return List<ProjectDocument>.unmodifiable([
@@ -46,6 +66,10 @@ class InMemoryPaiStore {
 
   List<DocumentBookmark> listBookmarks() =>
       List<DocumentBookmark>.unmodifiable(_bookmarks);
+
+  void replaceBookmarks(List<DocumentBookmark> bookmarks) {
+    _bookmarks = List<DocumentBookmark>.from(bookmarks);
+  }
 
   List<DocumentBookmark> listBookmarksForDocument(String documentId) {
     return List<DocumentBookmark>.unmodifiable([
@@ -58,6 +82,16 @@ class InMemoryPaiStore {
     for (final project in _projects) {
       if (project.id == projectId) {
         return project;
+      }
+    }
+
+    return null;
+  }
+
+  BoardProject? boardProjectById(String projectId) {
+    for (final boardProject in _boardProjects) {
+      if (boardProject.id == projectId) {
+        return boardProject;
       }
     }
 

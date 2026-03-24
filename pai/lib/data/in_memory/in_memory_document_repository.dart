@@ -10,7 +10,7 @@ class InMemoryDocumentRepository implements DocumentRepository {
 
   @override
   Future<ProjectDocument?> getDocumentById(String documentId) async {
-    return _store.documentById(documentId);
+    return _store.documentById(documentId) ?? _briefDocumentById(documentId);
   }
 
   @override
@@ -49,6 +49,42 @@ class InMemoryDocumentRepository implements DocumentRepository {
 
   @override
   Future<void> saveDocument(ProjectDocument document) async {
+    if (document.kind == ProjectPageKind.brief) {
+      final project = _store.projectById(document.projectId);
+      if (project == null) {
+        return;
+      }
+
+      _store.saveProject(
+        project.copyWith(
+          brief: document.content,
+          briefPageId: document.id,
+          updatedAt: document.updatedAt,
+        ),
+      );
+      return;
+    }
+
     _store.saveDocumentRecord(document);
+  }
+
+  ProjectDocument? _briefDocumentById(String documentId) {
+    for (final project in _store.listProjects()) {
+      if (project.briefPageId == documentId) {
+        return ProjectDocument(
+          id: project.briefPageId,
+          projectId: project.id,
+          title: 'Project Brief',
+          kind: ProjectPageKind.brief,
+          type: ProjectDocumentType.reference,
+          content: project.brief,
+          pinned: false,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          orderIndex: 0,
+        );
+      }
+    }
+    return null;
   }
 }

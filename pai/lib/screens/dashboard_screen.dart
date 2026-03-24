@@ -12,20 +12,24 @@ class DashboardScreen extends StatefulWidget {
     super.key,
     required this.projects,
     required this.boardProjects,
+    required this.showWorkspaceStats,
     required this.onProjectOpen,
     required this.onProjectMoved,
     required this.onProjectMoveEnded,
     required this.onProjectCreated,
     required this.onOpenSettings,
+    required this.onShowWorkspaceStatsChanged,
   });
 
   final List<Project> projects;
   final List<BoardProject> boardProjects;
+  final bool showWorkspaceStats;
   final ValueChanged<String> onProjectOpen;
   final void Function(String projectId, Offset nextPosition) onProjectMoved;
   final ValueChanged<String> onProjectMoveEnded;
   final Future<void> Function(NewProjectDraft draft) onProjectCreated;
   final VoidCallback onOpenSettings;
+  final ValueChanged<bool> onShowWorkspaceStatsChanged;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -119,6 +123,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 _DashboardTopBar(
                   searchController: _searchController,
+                  showWorkspaceStats: widget.showWorkspaceStats,
                   onSearchChanged: (_) => setState(() {}),
                   onClearSearch: () {
                     _searchController.clear();
@@ -126,6 +131,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                   onNewProject: () => _showNewProjectDialog(context),
                   onOpenSettings: widget.onOpenSettings,
+                  onToggleWorkspaceStats: () => widget
+                      .onShowWorkspaceStatsChanged(!widget.showWorkspaceStats),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
@@ -134,34 +141,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     subtitle: helperText,
                     totalVisible: visibleBoardProjects.length,
                     totalProjects: widget.boardProjects.length,
-                    statusStrip: _CompactStatusStrip(
-                      metrics: [
-                        _StatusStripMetric(
-                          label: 'Active',
-                          value: '$activeProjects',
-                          icon: Icons.play_arrow_rounded,
-                          tone: const Color(0xFF1E9E5A),
-                        ),
-                        _StatusStripMetric(
-                          label: 'Due soon',
-                          value: '${reminders.length}',
-                          icon: Icons.schedule_rounded,
-                          tone: const Color(0xFFB87413),
-                        ),
-                        _StatusStripMetric(
-                          label: 'Blocked',
-                          value: '$blockedProjects',
-                          icon: Icons.block_rounded,
-                          tone: const Color(0xFFC25757),
-                        ),
-                        _StatusStripMetric(
-                          label: 'Total',
-                          value: '${visibleProjects.length}',
-                          icon: Icons.apps_rounded,
-                          tone: const Color(0xFF4867B7),
-                        ),
-                      ],
-                    ),
+                    statusStrip: widget.showWorkspaceStats
+                        ? _CompactStatusStrip(
+                            metrics: [
+                              _StatusStripMetric(
+                                label: 'Active',
+                                value: '$activeProjects',
+                                icon: Icons.play_arrow_rounded,
+                                tone: const Color(0xFF1E9E5A),
+                              ),
+                              _StatusStripMetric(
+                                label: 'Due soon',
+                                value: '${reminders.length}',
+                                icon: Icons.schedule_rounded,
+                                tone: const Color(0xFFB87413),
+                              ),
+                              _StatusStripMetric(
+                                label: 'Blocked',
+                                value: '$blockedProjects',
+                                icon: Icons.block_rounded,
+                                tone: const Color(0xFFC25757),
+                              ),
+                              _StatusStripMetric(
+                                label: 'Total',
+                                value: '${visibleProjects.length}',
+                                icon: Icons.apps_rounded,
+                                tone: const Color(0xFF4867B7),
+                              ),
+                            ],
+                          )
+                        : null,
                     board: GlassSurface(
                       padding: EdgeInsets.zero,
                       borderRadius: BorderRadius.circular(28),
@@ -211,17 +220,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class _DashboardTopBar extends StatelessWidget {
   const _DashboardTopBar({
     required this.searchController,
+    required this.showWorkspaceStats,
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onNewProject,
     required this.onOpenSettings,
+    required this.onToggleWorkspaceStats,
   });
 
   final TextEditingController searchController;
+  final bool showWorkspaceStats;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onNewProject;
   final VoidCallback onOpenSettings;
+  final VoidCallback onToggleWorkspaceStats;
 
   @override
   Widget build(BuildContext context) {
@@ -288,6 +301,25 @@ class _DashboardTopBar extends StatelessWidget {
               ),
               icon: const Icon(Icons.add_rounded),
               label: const Text('New project'),
+            ),
+            GlassSurface(
+              padding: EdgeInsets.zero,
+              borderRadius: BorderRadius.circular(18),
+              blurSigma: 12,
+              tintColor: const Color(0xFFF8FBFF),
+              tintOpacity: 0.48,
+              boxShadow: const [],
+              child: IconButton(
+                onPressed: onToggleWorkspaceStats,
+                tooltip: showWorkspaceStats
+                    ? 'Hide workspace stats'
+                    : 'Show workspace stats',
+                icon: Icon(
+                  showWorkspaceStats
+                      ? Icons.bar_chart_rounded
+                      : Icons.bar_chart_outlined,
+                ),
+              ),
             ),
             GlassSurface(
               padding: EdgeInsets.zero,
@@ -438,7 +470,7 @@ class _WorkspaceShell extends StatelessWidget {
   final String subtitle;
   final int totalVisible;
   final int totalProjects;
-  final Widget statusStrip;
+  final Widget? statusStrip;
   final Widget board;
 
   @override
@@ -474,9 +506,11 @@ class _WorkspaceShell extends StatelessWidget {
             totalVisible: totalVisible,
             totalProjects: totalProjects,
           ),
-          const SizedBox(height: 10),
-          statusStrip,
-          const SizedBox(height: 12),
+          if (statusStrip != null) ...[
+            const SizedBox(height: 8),
+            statusStrip!,
+            const SizedBox(height: 10),
+          ],
           Expanded(child: board),
         ],
       ),
@@ -611,10 +645,14 @@ class _CompactStatusStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [for (final metric in metrics) _StatusPill(metric: metric)],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [for (final metric in metrics) _StatusPill(metric: metric)],
+      ),
     );
   }
 }
@@ -641,43 +679,44 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassSurface(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      borderRadius: BorderRadius.circular(18),
-      blurSigma: 14,
-      tintColor: const Color(0xFFF9FBFF),
-      tintOpacity: 0.6,
-      borderOpacity: 0.42,
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      borderRadius: BorderRadius.circular(16),
+      blurSigma: 12,
+      tintColor: const Color(0xFFFAFCFF),
+      tintOpacity: 0.46,
+      borderOpacity: 0.3,
       boxShadow: const [],
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 116),
+        constraints: const BoxConstraints(minWidth: 108),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 26,
+              height: 26,
               decoration: BoxDecoration(
-                color: metric.tone.withValues(alpha: 0.13),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+                color: metric.tone.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
               ),
-              child: Icon(metric.icon, size: 16, color: metric.tone),
+              child: Icon(metric.icon, size: 15, color: metric.tone),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   metric.value,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF25324A),
+                  ),
                 ),
                 Text(
                   metric.label,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFF5B6985),
+                    color: const Color(0xFF67758E),
                   ),
                 ),
               ],
