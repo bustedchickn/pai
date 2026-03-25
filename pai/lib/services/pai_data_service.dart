@@ -31,6 +31,11 @@ class PaiDataService {
 
   Future<AppDataSnapshot> load() => _snapshot();
 
+  Future<AppDataSnapshot> loadProjectPages(String projectId) async {
+    await _documentRepository.listDocumentsForProject(projectId);
+    return _snapshot();
+  }
+
   Future<AppDataSnapshot> createProject({
     required NewProjectDraft draft,
     required Offset boardPosition,
@@ -65,6 +70,7 @@ class PaiDataService {
       project: project,
       boardProject: boardProject,
     );
+    await _documentRepository.listDocumentsForProject(projectId);
     return _snapshot();
   }
 
@@ -95,9 +101,12 @@ class PaiDataService {
     await _sessionRepository.addSession(projectId, completionNote);
     final project = await _projectRepository.getProjectById(projectId);
     if (project != null) {
-      await _projectRepository.saveProject(
-        project.copyWith(brief: updatedBrief, updatedAt: DateTime.now()),
+      final updatedProject = project.copyWith(
+        brief: updatedBrief,
+        updatedAt: DateTime.now(),
       );
+      await _projectRepository.saveProject(updatedProject);
+      await _syncBriefPage(updatedProject);
     }
     return _snapshot();
   }
@@ -127,7 +136,11 @@ class PaiDataService {
   }
 
   Future<AppDataSnapshot> updateProject(Project project) async {
+    final existingProject = await _projectRepository.getProjectById(project.id);
     await _projectRepository.saveProject(project);
+    if (existingProject == null || existingProject.brief != project.brief) {
+      await _syncBriefPage(project);
+    }
     return _snapshot();
   }
 
@@ -171,6 +184,26 @@ class PaiDataService {
       boardProjects: boardProjects,
       documents: documents,
       bookmarks: bookmarks,
+    );
+  }
+
+  Future<void> _syncBriefPage(Project project) async {
+    final existingBrief = await _documentRepository.getDocumentById(
+      project.briefPageId,
+    );
+    await _documentRepository.saveDocument(
+      ProjectDocument(
+        id: project.briefPageId,
+        projectId: project.id,
+        title: 'Project Brief',
+        kind: ProjectPageKind.brief,
+        type: ProjectDocumentType.reference,
+        content: project.brief,
+        pinned: false,
+        createdAt: existingBrief?.createdAt ?? project.createdAt,
+        updatedAt: project.updatedAt,
+        orderIndex: existingBrief?.orderIndex ?? 0,
+      ),
     );
   }
 }

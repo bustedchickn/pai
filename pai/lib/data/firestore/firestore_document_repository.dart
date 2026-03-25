@@ -29,14 +29,14 @@ class FirestoreDocumentRepository implements DocumentRepository {
 
   @override
   Future<ProjectDocument?> getDocumentById(String documentId) async {
-    await _ensureLoaded();
+    _synchronizeUserCache();
     return _localStore.documentById(documentId) ??
         _briefDocumentById(documentId);
   }
 
   @override
   Future<void> deleteDocument(String documentId) async {
-    await _ensureLoaded();
+    _synchronizeUserCache();
     final document = _localStore.documentById(documentId);
     if (document == null) {
       return;
@@ -63,7 +63,7 @@ class FirestoreDocumentRepository implements DocumentRepository {
 
   @override
   Future<List<ProjectDocument>> listDocuments() async {
-    await _ensureLoaded();
+    _synchronizeUserCache();
     return _localStore.listDocuments();
   }
 
@@ -109,28 +109,21 @@ class FirestoreDocumentRepository implements DocumentRepository {
     _localStore.saveDocumentRecord(document);
   }
 
-  Future<void> _ensureLoaded() async {
+  void _synchronizeUserCache() {
     final uid = _requireUserId();
-    if (_loadedUserId != uid) {
-      _loadedUserId = uid;
-      _loadedProjectIds.clear();
-      _localStore.replaceDocuments(const []);
-      _localStore.replaceBookmarks(const []);
+    if (_loadedUserId == uid) {
+      return;
     }
 
-    for (final project in _localStore.listProjects()) {
-      await _ensureProjectLoaded(project.id);
-    }
+    _loadedUserId = uid;
+    _loadedProjectIds.clear();
+    _localStore.replaceDocuments(const []);
+    _localStore.replaceBookmarks(const []);
   }
 
   Future<void> _ensureProjectLoaded(String projectId) async {
+    _synchronizeUserCache();
     final uid = _requireUserId();
-    if (_loadedUserId != uid) {
-      _loadedUserId = uid;
-      _loadedProjectIds.clear();
-      _localStore.replaceDocuments(const []);
-      _localStore.replaceBookmarks(const []);
-    }
 
     if (_loadedProjectIds.contains(projectId)) {
       return;
@@ -144,10 +137,10 @@ class FirestoreDocumentRepository implements DocumentRepository {
     final snapshot = await _pagesCollectionForProject(
       uid: uid,
       projectId: projectId,
-    ).orderBy('createdAt').get();
+    ).get();
 
     if (snapshot.docs.isEmpty) {
-      await _seedProjectPagesFromLocalStore(project);
+      await _seedDefaultPagesForProject(project);
       _loadedProjectIds.add(projectId);
       return;
     }
@@ -158,13 +151,16 @@ class FirestoreDocumentRepository implements DocumentRepository {
     ];
     var hasBriefPage = false;
     var projectWithBrief = project;
+    final pages = [
+      for (final pageDocument in snapshot.docs)
+        _decodePage(
+          projectId: projectId,
+          pageId: pageDocument.id,
+          data: pageDocument.data(),
+        ),
+    ]..sort(_comparePages);
 
-    for (final pageDocument in snapshot.docs) {
-      final page = _decodePage(
-        projectId: projectId,
-        pageId: pageDocument.id,
-        data: pageDocument.data(),
-      );
+    for (final page in pages) {
       if (page.kind == ProjectPageKind.brief) {
         hasBriefPage = true;
         projectWithBrief = projectWithBrief.copyWith(
@@ -188,28 +184,15 @@ class FirestoreDocumentRepository implements DocumentRepository {
     _loadedProjectIds.add(projectId);
   }
 
-  Future<void> _seedProjectPagesFromLocalStore(Project project) async {
-    final batch = _firestore.batch();
+  Future<void> _seedDefaultPagesForProject(Project project) async {
     final briefPage = _briefDocumentFromProject(project);
-    batch.set(
-      _pagesCollectionForProject(
-        uid: _requireUserId(),
-        projectId: project.id,
-      ).doc(briefPage.id),
+    await _pagesCollectionForProject(
+      uid: _requireUserId(),
+      projectId: project.id,
+    ).doc(briefPage.id).set(
       _encodePage(briefPage),
+      SetOptions(merge: true),
     );
-
-    for (final document in _localStore.listDocumentsForProject(project.id)) {
-      batch.set(
-        _pagesCollectionForProject(
-          uid: _requireUserId(),
-          projectId: project.id,
-        ).doc(document.id),
-        _encodePage(document),
-      );
-    }
-
-    await batch.commit();
   }
 
   Future<void> _saveBriefPage(Project project) async {
@@ -341,6 +324,28 @@ class FirestoreDocumentRepository implements DocumentRepository {
       return value;
     }
     return null;
+  }
+
+  int _comparePages(ProjectDocument left, ProjectDocument right) {
+    final leftOrder = left.orderIndex;
+    final rightOrder = right.orderIndex;
+    if (leftOrder != null && rightOrder != null) {
+      final orderComparison = leftOrder.compareTo(rightOrder);
+      if (orderComparison != 0) {
+        return orderComparison;
+      }
+    } else if (leftOrder != null) {
+      return -1;
+    } else if (rightOrder != null) {
+      return 1;
+    }
+
+    final createdAtComparison = left.createdAt.compareTo(right.createdAt);
+    if (createdAtComparison != 0) {
+      return createdAtComparison;
+    }
+
+    return left.id.compareTo(right.id);
   }
 
   String _requireUserId() {

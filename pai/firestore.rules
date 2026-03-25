@@ -19,8 +19,7 @@ service cloud.firestore {
         allow delete: if false;
 
         match /pages/{pageId} {
-          allow read, create, update: if isOwner(userId);
-          allow delete: if isOwner(userId);
+          allow read, create, update, delete: if isOwner(userId);
         }
       }
     }

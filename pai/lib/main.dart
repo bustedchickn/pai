@@ -30,12 +30,22 @@ import 'widgets/project_board.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const PaiApp());
+  var useFirebase = false;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    useFirebase = true;
+  } catch (error) {
+    debugPrint('Firebase initialization skipped: $error');
+  }
+  runApp(PaiApp(useFirebase: useFirebase));
 }
 
 class PaiApp extends StatelessWidget {
-  const PaiApp({super.key});
+  const PaiApp({super.key, required this.useFirebase});
+
+  final bool useFirebase;
 
   @override
   Widget build(BuildContext context) {
@@ -47,13 +57,15 @@ class PaiApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF7F8FC),
         useMaterial3: true,
       ),
-      home: const AppShell(),
+      home: AppShell(useFirebase: useFirebase),
     );
   }
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, required this.useFirebase});
+
+  final bool useFirebase;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -82,7 +94,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    final useFirebase = Firebase.apps.isNotEmpty;
+    final useFirebase = widget.useFirebase;
     final store = InMemoryPaiStore();
     _authBootstrapService = useFirebase
         ? FirebaseAuthBootstrapService()
@@ -224,6 +236,12 @@ class _AppShellState extends State<AppShell> {
 
   void selectPage(int index) {
     setState(() => selectedIndex = index);
+    if (index != 1 || projects.isEmpty) {
+      return;
+    }
+
+    final projectId = selectedProjectId ?? projects.first.id;
+    unawaited(_loadProjectPages(projectId));
   }
 
   void openProject(String projectId) {
@@ -232,6 +250,7 @@ class _AppShellState extends State<AppShell> {
       projectSelectionRequestId++;
       selectedIndex = 1;
     });
+    unawaited(_loadProjectPages(projectId));
   }
 
   void setShowWorkspaceStats(bool value) {
@@ -309,6 +328,15 @@ class _AppShellState extends State<AppShell> {
 
   Future<void> deleteDocument(String documentId) async {
     final snapshot = await _dataService.deleteDocument(documentId);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _applySnapshot(snapshot));
+  }
+
+  Future<void> _loadProjectPages(String projectId) async {
+    final snapshot = await _dataService.loadProjectPages(projectId);
     if (!mounted) {
       return;
     }
