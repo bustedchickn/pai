@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/board_project.dart';
 import '../models/new_project_draft.dart';
 import '../models/project.dart';
+import '../theme/app_theme.dart';
 import '../widgets/glass_surface.dart';
 import '../widgets/new_project_dialog.dart';
 import '../widgets/project_board.dart';
+import '../widgets/project_board_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -85,6 +87,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final paiColors = context.paiColors;
+    final isMobileDashboard = MediaQuery.sizeOf(context).width < 900;
     final visibleBoardProjects = _filteredBoardProjects();
     final visibleProjectIds = {
       for (final boardProject in visibleBoardProjects) boardProject.id,
@@ -102,7 +107,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((project) => project.status == 'blocked')
         .length;
     final helperText = _searchQuery.isEmpty
-        ? 'Drag projects into place, pan across the canvas, and zoom for the level of detail you need.'
+        ? isMobileDashboard
+              ? 'Browse your projects in a quick list and tap one to open its workspace.'
+              : 'Drag projects into place, pan across the canvas, and zoom for the level of detail you need.'
         : 'Showing ${visibleBoardProjects.length} of ${widget.boardProjects.length} projects for "${_searchController.text.trim()}".';
 
     return SafeArea(
@@ -122,6 +129,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               children: [
                 _DashboardTopBar(
+                  isMobileDashboard: isMobileDashboard,
                   searchController: _searchController,
                   showWorkspaceStats: widget.showWorkspaceStats,
                   onSearchChanged: (_) => setState(() {}),
@@ -139,6 +147,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _WorkspaceShell(
                     title: 'workspace',
                     subtitle: helperText,
+                    interactionLabel: isMobileDashboard
+                        ? 'Tap to open'
+                        : 'Drag, zoom, open',
                     totalVisible: visibleBoardProjects.length,
                     totalProjects: widget.boardProjects.length,
                     statusStrip: widget.showWorkspaceStats
@@ -148,64 +159,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 label: 'Active',
                                 value: '$activeProjects',
                                 icon: Icons.play_arrow_rounded,
-                                tone: const Color(0xFF1E9E5A),
+                                tone: colorScheme.tertiary,
                               ),
                               _StatusStripMetric(
                                 label: 'Due soon',
                                 value: '${reminders.length}',
                                 icon: Icons.schedule_rounded,
-                                tone: const Color(0xFFB87413),
+                                tone: paiColors.warningForeground,
                               ),
                               _StatusStripMetric(
                                 label: 'Blocked',
                                 value: '$blockedProjects',
                                 icon: Icons.block_rounded,
-                                tone: const Color(0xFFC25757),
+                                tone: colorScheme.error,
                               ),
                               _StatusStripMetric(
                                 label: 'Total',
                                 value: '${visibleProjects.length}',
                                 icon: Icons.apps_rounded,
-                                tone: const Color(0xFF4867B7),
+                                tone: colorScheme.primary,
                               ),
                             ],
                           )
                         : null,
-                    board: GlassSurface(
-                      padding: EdgeInsets.zero,
-                      borderRadius: BorderRadius.circular(28),
-                      blurSigma: 18,
-                      tintColor: const Color(0xFFF4F8FF),
-                      tintOpacity: 0.56,
-                      borderOpacity: 0.54,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.34),
-                          const Color(0xFFEAF1FF).withValues(alpha: 0.52),
-                          const Color(0xFFFFFCF6).withValues(alpha: 0.42),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF7589BC).withValues(alpha: 0.1),
-                          blurRadius: 26,
-                          offset: const Offset(0, 16),
-                        ),
-                      ],
-                      child: ProjectBoard(
-                        boardProjects: visibleBoardProjects,
-                        onProjectDragged: widget.onProjectMoved,
-                        onProjectDragEnded: widget.onProjectMoveEnded,
-                        onProjectTap: widget.onProjectOpen,
-                        onAddProjectTap: () => _showNewProjectDialog(context),
-                        boardWidth: ProjectBoard.defaultBoardWidth,
-                        boardHeight: ProjectBoard.defaultBoardHeight,
-                        cardWidth: ProjectBoard.defaultCardWidth,
-                        cardHeight: ProjectBoard.defaultCardHeight,
-                      ),
-                    ),
+                    board: isMobileDashboard
+                        ? _MobileProjectList(
+                            boardProjects: visibleBoardProjects,
+                            onProjectOpen: widget.onProjectOpen,
+                          )
+                        : GlassSurface(
+                            padding: EdgeInsets.zero,
+                            borderRadius: BorderRadius.circular(28),
+                            blurSigma: 18,
+                            tintColor: AppTheme.tintedSurface(
+                              colorScheme.surface,
+                              colorScheme.primary,
+                              amount:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? 0.18
+                                  : 0.04,
+                            ),
+                            tintOpacity: 0.68,
+                            borderOpacity: 0.54,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.surface.withValues(alpha: 0.76),
+                                paiColors.boardCanvasMid.withValues(
+                                  alpha: 0.86,
+                                ),
+                                paiColors.boardCanvasEnd.withValues(
+                                  alpha: 0.76,
+                                ),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: paiColors.panelShadow.withValues(
+                                  alpha:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? 0.22
+                                      : 0.1,
+                                ),
+                                blurRadius: 26,
+                                offset: const Offset(0, 16),
+                              ),
+                            ],
+                            child: ProjectBoard(
+                              boardProjects: visibleBoardProjects,
+                              onProjectDragged: widget.onProjectMoved,
+                              onProjectDragEnded: widget.onProjectMoveEnded,
+                              onProjectTap: widget.onProjectOpen,
+                              onAddProjectTap: () =>
+                                  _showNewProjectDialog(context),
+                              boardWidth: ProjectBoard.defaultBoardWidth,
+                              boardHeight: ProjectBoard.defaultBoardHeight,
+                              cardWidth: ProjectBoard.defaultCardWidth,
+                              cardHeight: ProjectBoard.defaultCardHeight,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -219,6 +254,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 class _DashboardTopBar extends StatelessWidget {
   const _DashboardTopBar({
+    required this.isMobileDashboard,
     required this.searchController,
     required this.showWorkspaceStats,
     required this.onSearchChanged,
@@ -228,6 +264,7 @@ class _DashboardTopBar extends StatelessWidget {
     required this.onToggleWorkspaceStats,
   });
 
+  final bool isMobileDashboard;
   final TextEditingController searchController;
   final bool showWorkspaceStats;
   final ValueChanged<String> onSearchChanged;
@@ -238,6 +275,9 @@ class _DashboardTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 960;
@@ -245,8 +285,12 @@ class _DashboardTopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           borderRadius: BorderRadius.circular(20),
           blurSigma: 14,
-          tintColor: const Color(0xFFF9FBFF),
-          tintOpacity: 0.62,
+          tintColor: AppTheme.tintedSurface(
+            colorScheme.surface,
+            colorScheme.primary,
+            amount: isDark ? 0.14 : 0.03,
+          ),
+          tintOpacity: 0.7,
           borderOpacity: 0.42,
           highlightOpacity: 0.28,
           boxShadow: const [],
@@ -292,22 +336,25 @@ class _DashboardTopBar extends StatelessWidget {
             FilledButton.icon(
               onPressed: onNewProject,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF3557A5),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobileDashboard ? 12 : 16,
                   vertical: 14,
                 ),
+                minimumSize: Size(isMobileDashboard ? 44 : 0, 44),
               ),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('New project'),
+              label: Text(isMobileDashboard ? 'New' : 'New project'),
             ),
             GlassSurface(
               padding: EdgeInsets.zero,
               borderRadius: BorderRadius.circular(18),
               blurSigma: 12,
-              tintColor: const Color(0xFFF8FBFF),
-              tintOpacity: 0.48,
+              tintColor: AppTheme.tintedSurface(
+                colorScheme.surface,
+                colorScheme.primary,
+                amount: isDark ? 0.14 : 0.03,
+              ),
+              tintOpacity: 0.62,
               boxShadow: const [],
               child: IconButton(
                 onPressed: onToggleWorkspaceStats,
@@ -321,59 +368,107 @@ class _DashboardTopBar extends StatelessWidget {
                 ),
               ),
             ),
-            GlassSurface(
-              padding: EdgeInsets.zero,
-              borderRadius: BorderRadius.circular(18),
-              blurSigma: 12,
-              tintColor: const Color(0xFFF8FBFF),
-              tintOpacity: 0.48,
-              boxShadow: const [],
-              child: IconButton(
-                onPressed: onOpenSettings,
-                tooltip: 'Settings',
-                icon: const Icon(Icons.tune_rounded),
+            if (!isMobileDashboard)
+              GlassSurface(
+                padding: EdgeInsets.zero,
+                borderRadius: BorderRadius.circular(18),
+                blurSigma: 12,
+                tintColor: AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  colorScheme.primary,
+                  amount: isDark ? 0.14 : 0.03,
+                ),
+                tintOpacity: 0.62,
+                boxShadow: const [],
+                child: IconButton(
+                  onPressed: onOpenSettings,
+                  tooltip: 'Settings',
+                  icon: const Icon(Icons.tune_rounded),
+                ),
               ),
+            _ProfileBadge(
+              onOpenSettings: isMobileDashboard ? onOpenSettings : null,
             ),
-            const _ProfileBadge(),
           ],
         );
+
+        Widget topBarContent;
+        if (isMobileDashboard) {
+          topBarContent = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const _BrandBadge(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        reverse: true,
+                        child: actions,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              searchField,
+            ],
+          );
+        } else if (isCompact) {
+          topBarContent = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _BrandBadge(),
+              const SizedBox(height: 12),
+              actions,
+              const SizedBox(height: 12),
+              searchField,
+            ],
+          );
+        } else {
+          topBarContent = Row(
+            children: [
+              const _BrandBadge(),
+              const SizedBox(width: 16),
+              Expanded(child: searchField),
+              const SizedBox(width: 16),
+              actions,
+            ],
+          );
+        }
 
         return GlassSurface(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           borderRadius: BorderRadius.circular(24),
           blurSigma: 20,
-          tintColor: const Color(0xFFF4F8FF),
-          tintOpacity: 0.56,
+          tintColor: AppTheme.tintedSurface(
+            colorScheme.surface,
+            colorScheme.primary,
+            amount: isDark ? 0.18 : 0.04,
+          ),
+          tintOpacity: 0.66,
           borderOpacity: 0.48,
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.white.withValues(alpha: 0.36),
-              const Color(0xFFEAF2FF).withValues(alpha: 0.5),
-              const Color(0xFFFFFCF7).withValues(alpha: 0.34),
+              colorScheme.surface.withValues(alpha: 0.8),
+              AppTheme.tintedSurface(
+                colorScheme.surface,
+                colorScheme.primary,
+                amount: isDark ? 0.22 : 0.08,
+              ).withValues(alpha: 0.84),
+              AppTheme.tintedSurface(
+                colorScheme.surface,
+                colorScheme.secondary,
+                amount: isDark ? 0.14 : 0.04,
+              ).withValues(alpha: 0.72),
             ],
           ),
-          child: isCompact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _BrandBadge(),
-                    const SizedBox(height: 12),
-                    actions,
-                    const SizedBox(height: 12),
-                    searchField,
-                  ],
-                )
-              : Row(
-                  children: [
-                    const _BrandBadge(),
-                    const SizedBox(width: 16),
-                    Expanded(child: searchField),
-                    const SizedBox(width: 16),
-                    actions,
-                  ],
-                ),
+          child: topBarContent,
         );
       },
     );
@@ -385,12 +480,17 @@ class _BrandBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       borderRadius: BorderRadius.circular(18),
       blurSigma: 12,
-      tintColor: const Color(0xFFEFF4FF),
-      tintOpacity: 0.64,
+      tintColor: AppTheme.tintedSurface(
+        colorScheme.surface,
+        colorScheme.primary,
+        amount: Theme.of(context).brightness == Brightness.dark ? 0.16 : 0.06,
+      ),
+      tintOpacity: 0.72,
       boxShadow: const [],
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -399,21 +499,17 @@ class _BrandBadge extends StatelessWidget {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: const Color(0xFF3557A5),
+              color: colorScheme.primary,
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF3557A5).withValues(alpha: 0.24),
+                  color: colorScheme.primary.withValues(alpha: 0.24),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.grid_view_rounded,
-              size: 14,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.grid_view_rounded, size: 14),
           ),
           const SizedBox(width: 10),
           Text(
@@ -430,36 +526,77 @@ class _BrandBadge extends StatelessWidget {
 }
 
 class _ProfileBadge extends StatelessWidget {
-  const _ProfileBadge();
+  const _ProfileBadge({this.onOpenSettings});
+
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
-    return GlassSurface(
+    final colorScheme = Theme.of(context).colorScheme;
+    final badge = GlassSurface(
       padding: const EdgeInsets.all(4),
       borderRadius: BorderRadius.circular(999),
       blurSigma: 12,
-      tintColor: const Color(0xFFF8FBFF),
-      tintOpacity: 0.5,
+      tintColor: AppTheme.tintedSurface(
+        colorScheme.surface,
+        colorScheme.primary,
+        amount: Theme.of(context).brightness == Brightness.dark ? 0.14 : 0.03,
+      ),
+      tintOpacity: 0.62,
       boxShadow: const [],
-      child: const CircleAvatar(
+      child: CircleAvatar(
         radius: 18,
-        backgroundColor: Color(0xFFE8EEFF),
+        backgroundColor: AppTheme.tintedSurface(
+          colorScheme.surface,
+          colorScheme.primary,
+          amount: Theme.of(context).brightness == Brightness.dark ? 0.24 : 0.12,
+        ),
         child: Text(
           'P',
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: Color(0xFF3557A5),
+            color: colorScheme.primary,
           ),
         ),
       ),
     );
+
+    if (onOpenSettings == null) {
+      return badge;
+    }
+
+    return PopupMenuButton<_ProfileMenuAction>(
+      tooltip: 'Profile',
+      onSelected: (action) {
+        switch (action) {
+          case _ProfileMenuAction.settings:
+            onOpenSettings?.call();
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem<_ProfileMenuAction>(
+          value: _ProfileMenuAction.settings,
+          child: Row(
+            children: [
+              Icon(Icons.settings_outlined),
+              SizedBox(width: 12),
+              Text('Settings'),
+            ],
+          ),
+        ),
+      ],
+      child: badge,
+    );
   }
 }
+
+enum _ProfileMenuAction { settings }
 
 class _WorkspaceShell extends StatelessWidget {
   const _WorkspaceShell({
     required this.title,
     required this.subtitle,
+    required this.interactionLabel,
     required this.totalVisible,
     required this.totalProjects,
     required this.statusStrip,
@@ -468,6 +605,7 @@ class _WorkspaceShell extends StatelessWidget {
 
   final String title;
   final String subtitle;
+  final String interactionLabel;
   final int totalVisible;
   final int totalProjects;
   final Widget? statusStrip;
@@ -475,25 +613,33 @@ class _WorkspaceShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final paiColors = context.paiColors;
     return GlassSurface(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       borderRadius: BorderRadius.circular(32),
       blurSigma: 24,
-      tintColor: const Color(0xFFF4F8FF),
-      tintOpacity: 0.44,
+      tintColor: AppTheme.tintedSurface(
+        colorScheme.surface,
+        colorScheme.primary,
+        amount: isDark ? 0.18 : 0.04,
+      ),
+      tintOpacity: 0.58,
       borderOpacity: 0.46,
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.white.withValues(alpha: 0.3),
-          const Color(0xFFEAF2FF).withValues(alpha: 0.42),
-          const Color(0xFFFFFBF5).withValues(alpha: 0.28),
+          colorScheme.surface.withValues(alpha: 0.72),
+          paiColors.boardCanvasMid.withValues(alpha: 0.8),
+          paiColors.boardCanvasEnd.withValues(alpha: 0.66),
         ],
       ),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF8093BE).withValues(alpha: 0.12),
+          color: paiColors.panelShadow.withValues(alpha: isDark ? 0.24 : 0.12),
           blurRadius: 28,
           offset: const Offset(0, 18),
         ),
@@ -503,6 +649,7 @@ class _WorkspaceShell extends StatelessWidget {
           _WorkspaceHeader(
             title: title,
             subtitle: subtitle,
+            interactionLabel: interactionLabel,
             totalVisible: totalVisible,
             totalProjects: totalProjects,
           ),
@@ -522,17 +669,20 @@ class _WorkspaceHeader extends StatelessWidget {
   const _WorkspaceHeader({
     required this.title,
     required this.subtitle,
+    required this.interactionLabel,
     required this.totalVisible,
     required this.totalProjects,
   });
 
   final String title;
   final String subtitle;
+  final String interactionLabel;
   final int totalVisible;
   final int totalProjects;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 900;
@@ -551,9 +701,9 @@ class _WorkspaceHeader extends StatelessWidget {
               subtitle,
               maxLines: isCompact ? 3 : 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF586783)),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         );
@@ -571,9 +721,9 @@ class _WorkspaceHeader extends StatelessWidget {
               icon: Icons.layers_rounded,
               label: '$totalProjects total',
             ),
-            const _MiniInfoPill(
+            _MiniInfoPill(
               icon: Icons.touch_app_rounded,
-              label: 'Drag, zoom, open',
+              label: interactionLabel,
             ),
           ],
         );
@@ -612,27 +762,105 @@ class _MiniInfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       borderRadius: BorderRadius.circular(999),
       blurSigma: 12,
-      tintColor: const Color(0xFFF8FBFF),
-      tintOpacity: 0.58,
+      tintColor: AppTheme.tintedSurface(
+        colorScheme.surface,
+        colorScheme.primary,
+        amount: isDark ? 0.14 : 0.03,
+      ),
+      tintOpacity: 0.68,
       borderOpacity: 0.42,
       boxShadow: const [],
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF5F6E8C)),
+          Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF495871),
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MobileProjectList extends StatelessWidget {
+  const _MobileProjectList({
+    required this.boardProjects,
+    required this.onProjectOpen,
+  });
+
+  final List<BoardProject> boardProjects;
+  final ValueChanged<String> onProjectOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (boardProjects.isEmpty) {
+      return const _MobileProjectListEmptyState();
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.maxWidth.clamp(0.0, 420.0).toDouble();
+        final cardHeight = cardWidth * 0.47;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ListView.separated(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            itemCount: boardProjects.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final boardProject = boardProjects[index];
+              return Center(
+                child: SizedBox(
+                  width: cardWidth,
+                  child: GestureDetector(
+                    onTap: () => onProjectOpen(boardProject.id),
+                    child: ProjectBoardCard(
+                      boardProject: boardProject,
+                      width: cardWidth,
+                      height: cardHeight,
+                      briefMaxLines: 2,
+                      dense: true,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MobileProjectListEmptyState extends StatelessWidget {
+  const _MobileProjectListEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          'No projects match your current search.',
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+        ),
       ),
     );
   }
@@ -678,12 +906,17 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       borderRadius: BorderRadius.circular(16),
       blurSigma: 12,
-      tintColor: const Color(0xFFFAFCFF),
-      tintOpacity: 0.46,
+      tintColor: AppTheme.tintedSurface(
+        colorScheme.surface,
+        metric.tone,
+        amount: Theme.of(context).brightness == Brightness.dark ? 0.14 : 0.03,
+      ),
+      tintOpacity: 0.58,
       borderOpacity: 0.3,
       boxShadow: const [],
       child: ConstrainedBox(
@@ -695,9 +928,17 @@ class _StatusPill extends StatelessWidget {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: metric.tone.withValues(alpha: 0.1),
+                color: AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  metric.tone,
+                  amount: Theme.of(context).brightness == Brightness.dark
+                      ? 0.2
+                      : 0.1,
+                ),
                 borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+                ),
               ),
               child: Icon(metric.icon, size: 15, color: metric.tone),
             ),
@@ -710,13 +951,13 @@ class _StatusPill extends StatelessWidget {
                   metric.value,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF25324A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 Text(
                   metric.label,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFF67758E),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

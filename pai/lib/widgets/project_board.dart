@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../models/board_project.dart';
 import '../services/board_hover_sound_player.dart';
+import '../theme/app_theme.dart';
 import 'glass_surface.dart';
 import 'project_board_card.dart';
 
@@ -235,14 +236,13 @@ class _ProjectBoardState extends State<ProjectBoard>
       availableWidth / widget.boardWidth,
       availableHeight / widget.boardHeight,
     );
-    return (fitScale * 0.96)
-        .clamp(ProjectBoard.minScaleFloor, 0.62)
-        .toDouble();
+    return (fitScale * 0.96).clamp(ProjectBoard.minScaleFloor, 0.62).toDouble();
   }
 
   double _resetScaleFor(Size viewportSize) {
     final minimumScale = _minimumScaleFor(viewportSize);
-    return math.max(minimumScale * 1.9, 0.84)
+    return math
+        .max(minimumScale * 1.9, 0.84)
         .clamp(minimumScale, 1.0)
         .toDouble();
   }
@@ -373,6 +373,7 @@ class _ProjectBoardState extends State<ProjectBoard>
 
   @override
   Widget build(BuildContext context) {
+    final paiColors = context.paiColors;
     final viewportChild = LayoutBuilder(
       builder: (context, constraints) {
         final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
@@ -381,11 +382,15 @@ class _ProjectBoardState extends State<ProjectBoard>
 
         return Container(
           key: _boardViewportKey,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFFF8FAFF), Color(0xFFF0F5FF), Color(0xFFFDFBF6)],
+              colors: [
+                paiColors.boardCanvasStart,
+                paiColors.boardCanvasMid,
+                paiColors.boardCanvasEnd,
+              ],
             ),
           ),
           child: Stack(
@@ -484,7 +489,9 @@ class _ProjectBoardState extends State<ProjectBoard>
                                     onTap: () {
                                       _noteBoardInteraction();
                                       _bringProjectToFront(boardProject.id);
-                                      widget.onProjectTap?.call(boardProject.id);
+                                      widget.onProjectTap?.call(
+                                        boardProject.id,
+                                      );
                                     },
                                     onPanStart: (details) {
                                       final scenePosition =
@@ -662,6 +669,10 @@ class _ResetBoardViewControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = theme.brightness == Brightness.dark;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => onHoverChanged(true),
@@ -691,13 +702,19 @@ class _ResetBoardViewControl extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(999),
                   blurSigma: 16,
-                  tintColor: const Color(0xFFF7FAFF),
-                  tintOpacity: expanded ? 0.64 : 0.5,
+                  tintColor: AppTheme.tintedSurface(
+                    colorScheme.surface,
+                    colorScheme.primary,
+                    amount: isDark ? 0.16 : 0.04,
+                  ),
+                  tintOpacity: expanded ? 0.74 : 0.62,
                   borderOpacity: 0.52,
                   highlightOpacity: 0.3,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF7085B8).withValues(alpha: 0.14),
+                      color: paiColors.panelShadow.withValues(
+                        alpha: isDark ? 0.24 : 0.14,
+                      ),
                       blurRadius: 18,
                       offset: const Offset(0, 10),
                     ),
@@ -707,10 +724,10 @@ class _ResetBoardViewControl extends StatelessWidget {
                         ? MainAxisAlignment.start
                         : MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.center_focus_strong_rounded,
                         size: 18,
-                        color: Color(0xFF42567D),
+                        color: colorScheme.onSurface,
                       ),
                       Flexible(
                         child: AnimatedSwitcher(
@@ -735,12 +752,13 @@ class _ResetBoardViewControl extends StatelessWidget {
                                     'Reset view',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.labelLarge?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF42567D),
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: colorScheme.onSurface,
+                                        ),
                                   ),
                                 )
                               : const SizedBox(
@@ -769,18 +787,23 @@ class _BoardBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paiColors = context.paiColors;
     final zoneWidth = (boardWidth - 124) / 2;
     final zoneHeight = (boardHeight - 164) / 2;
 
     return Stack(
       children: [
-        Positioned.fill(child: CustomPaint(painter: _BoardGridPainter())),
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _BoardGridPainter(color: paiColors.boardGrid),
+          ),
+        ),
         Positioned(
           left: -80,
           top: -120,
           child: _GlowOrb(
             size: 260,
-            color: const Color(0xFFBFD7FF).withValues(alpha: 0.45),
+            color: paiColors.boardGlowBlue.withValues(alpha: 0.45),
           ),
         ),
         Positioned(
@@ -788,7 +811,7 @@ class _BoardBackdrop extends StatelessWidget {
           top: boardHeight * 0.18,
           child: _GlowOrb(
             size: 220,
-            color: const Color(0xFFFFE5B8).withValues(alpha: 0.4),
+            color: paiColors.boardGlowGold.withValues(alpha: 0.4),
           ),
         ),
         Positioned(
@@ -796,7 +819,7 @@ class _BoardBackdrop extends StatelessWidget {
           bottom: -70,
           child: _GlowOrb(
             size: 240,
-            color: const Color(0xFFCBEFDB).withValues(alpha: 0.34),
+            color: paiColors.boardGlowGreen.withValues(alpha: 0.34),
           ),
         ),
         Positioned(
@@ -805,7 +828,7 @@ class _BoardBackdrop extends StatelessWidget {
           child: _BoardZonePanel(
             width: zoneWidth,
             height: zoneHeight,
-            color: const Color(0xFFEAF2FF),
+            color: paiColors.boardZoneNow,
           ),
         ),
         Positioned(
@@ -814,7 +837,7 @@ class _BoardBackdrop extends StatelessWidget {
           child: _BoardZonePanel(
             width: zoneWidth,
             height: zoneHeight,
-            color: const Color(0xFFFFF2D9),
+            color: paiColors.boardZoneSoon,
           ),
         ),
         Positioned(
@@ -823,7 +846,7 @@ class _BoardBackdrop extends StatelessWidget {
           child: _BoardZonePanel(
             width: zoneWidth,
             height: zoneHeight,
-            color: const Color(0xFFE8F7F0),
+            color: paiColors.boardZoneIdeas,
           ),
         ),
         Positioned(
@@ -832,7 +855,7 @@ class _BoardBackdrop extends StatelessWidget {
           child: _BoardZonePanel(
             width: zoneWidth,
             height: zoneHeight,
-            color: const Color(0xFFF5EDF7),
+            color: paiColors.boardZonePaused,
           ),
         ),
       ],
@@ -853,6 +876,9 @@ class _BoardZonePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: width,
       height: height,
@@ -861,15 +887,21 @@ class _BoardZonePanel extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: 0.2),
+            colorScheme.surface.withValues(alpha: isDark ? 0.06 : 0.2),
             color.withValues(alpha: 0.56),
           ],
         ),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.78)),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: isDark ? 0.8 : 0.5,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8090C2).withValues(alpha: 0.08),
+            color: paiColors.panelShadow.withValues(
+              alpha: isDark ? 0.18 : 0.08,
+            ),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -899,10 +931,13 @@ class _GlowOrb extends StatelessWidget {
 }
 
 class _BoardGridPainter extends CustomPainter {
+  _BoardGridPainter({required this.color});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFCFD7EB).withValues(alpha: 0.55);
+    final paint = Paint()..color = color.withValues(alpha: 0.55);
     const spacing = 44.0;
 
     for (double x = 20; x < size.width; x += spacing) {
@@ -913,7 +948,8 @@ class _BoardGridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BoardGridPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _NewProjectBoardCard extends StatelessWidget {
@@ -924,6 +960,7 @@ class _NewProjectBoardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => onHoverEnter?.call(),
@@ -934,8 +971,14 @@ class _NewProjectBoardCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           borderRadius: BorderRadius.circular(22),
           blurSigma: 16,
-          tintColor: const Color(0xFFF9FBFF),
-          tintOpacity: 0.72,
+          tintColor: AppTheme.tintedSurface(
+            colorScheme.surface,
+            colorScheme.primary,
+            amount: Theme.of(context).brightness == Brightness.dark
+                ? 0.16
+                : 0.04,
+          ),
+          tintOpacity: 0.76,
           borderOpacity: 0.5,
           child: SizedBox(
             width: 196,
@@ -947,12 +990,17 @@ class _NewProjectBoardCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'New Project',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                const Text('Drop in a fresh idea.'),
+                Text(
+                  'Drop in a fresh idea.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -969,12 +1017,17 @@ class _BoardZoneLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GlassSurface(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       borderRadius: BorderRadius.circular(999),
       blurSigma: 10,
-      tintColor: const Color(0xFFF8FBFF),
-      tintOpacity: 0.6,
+      tintColor: AppTheme.tintedSurface(
+        colorScheme.surface,
+        colorScheme.primary,
+        amount: Theme.of(context).brightness == Brightness.dark ? 0.14 : 0.03,
+      ),
+      tintOpacity: 0.68,
       borderOpacity: 0.5,
       boxShadow: const [],
       child: Text(
@@ -986,3 +1039,6 @@ class _BoardZoneLabel extends StatelessWidget {
     );
   }
 }
+
+
+

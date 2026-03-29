@@ -9,6 +9,7 @@ import '../models/document_bookmark.dart';
 import '../services/document_markdown_shortcuts.dart';
 import '../services/document_selection_wrap.dart';
 import '../services/project_document_content_codec.dart';
+import '../theme/app_theme.dart';
 
 typedef BookmarkCreateCallback =
     Future<void> Function(String label, String anchor, String? note);
@@ -140,19 +141,25 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
         index: index,
         len: len,
         data: data,
-        replaceText: (
-          int nextIndex,
-          int nextLen,
-          Object? nextData,
-          TextSelection? nextSelection,
-        ) {
-          _isApplyingEditorTransform = true;
-          try {
-            controller.replaceText(nextIndex, nextLen, nextData, nextSelection);
-          } finally {
-            _isApplyingEditorTransform = false;
-          }
-        },
+        replaceText:
+            (
+              int nextIndex,
+              int nextLen,
+              Object? nextData,
+              TextSelection? nextSelection,
+            ) {
+              _isApplyingEditorTransform = true;
+              try {
+                controller.replaceText(
+                  nextIndex,
+                  nextLen,
+                  nextData,
+                  nextSelection,
+                );
+              } finally {
+                _isApplyingEditorTransform = false;
+              }
+            },
       );
       if (handledSelectionWrap) {
         _pendingListShortcutRevert = null;
@@ -180,7 +187,8 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
     final controller = _controller;
     if (pendingListShortcutRevert != null &&
         controller != null &&
-        (controller.selection.baseOffset != pendingListShortcutRevert.lineStart ||
+        (controller.selection.baseOffset !=
+                pendingListShortcutRevert.lineStart ||
             !controller.selection.isCollapsed)) {
       _pendingListShortcutRevert = null;
     }
@@ -197,12 +205,10 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
     }
 
     final encoded = switch (widget.storageFormat) {
-      ProjectPageStorageFormat.richTextJson => ProjectDocumentContentCodec.encode(
-        controller.document,
-      ),
-      ProjectPageStorageFormat.markdown => ProjectDocumentContentCodec.toMarkdown(
-        controller.document,
-      ),
+      ProjectPageStorageFormat.richTextJson =>
+        ProjectDocumentContentCodec.encode(controller.document),
+      ProjectPageStorageFormat.markdown =>
+        ProjectDocumentContentCodec.toMarkdown(controller.document),
     };
     if (widget.contentController.text == encoded) {
       return;
@@ -516,20 +522,27 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = theme.brightness == Brightness.dark;
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
     final controller = _controller;
     final activeAttributes =
         controller?.getSelectionStyle().attributes ?? const {};
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFDDE4F2)),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(isMobileLayout ? 24 : 28),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7F94C8).withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
+            color: paiColors.panelShadow.withValues(
+              alpha: isDark ? 0.18 : 0.08,
+            ),
+            blurRadius: isMobileLayout ? 18 : 24,
+            offset: Offset(0, isMobileLayout ? 10 : 14),
           ),
         ],
       ),
@@ -546,16 +559,19 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
             isPinned: widget.isPinned,
             hasChanges: widget.hasChanges,
             boldEnabled: activeAttributes.containsKey(quill.Attribute.bold.key),
-            italicEnabled:
-                activeAttributes.containsKey(quill.Attribute.italic.key),
-            underlineEnabled:
-                activeAttributes.containsKey(quill.Attribute.underline.key),
+            italicEnabled: activeAttributes.containsKey(
+              quill.Attribute.italic.key,
+            ),
+            underlineEnabled: activeAttributes.containsKey(
+              quill.Attribute.underline.key,
+            ),
             linkEnabled: activeAttributes.containsKey('link'),
             onFileMenuSelection: _handleFileMenuSelection,
             onInsertMenuSelection: _handleInsertMenuSelection,
             onBookmarksMenuSelection: _handleBookmarkMenuSelection,
             onToggleBold: () => _toggleInlineAttribute(quill.Attribute.bold),
-            onToggleItalic: () => _toggleInlineAttribute(quill.Attribute.italic),
+            onToggleItalic: () =>
+                _toggleInlineAttribute(quill.Attribute.italic),
             onToggleUnderline: () =>
                 _toggleInlineAttribute(quill.Attribute.underline),
             onAddLink: _addLink,
@@ -565,104 +581,120 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
             canDelete: widget.onDeletePage != null,
             onSavePage: widget.onSavePage,
           ),
-          const Divider(height: 1, color: Color(0xFFE5EAF5)),
+          Divider(height: 1, color: colorScheme.outlineVariant),
           Expanded(
             child: controller == null
                 ? const SizedBox.shrink()
                 : LayoutBuilder(
                     builder: (context, constraints) {
-                      final showPageHeader = constraints.maxHeight >= 240;
+                      final showPageHeader =
+                          !isMobileLayout && constraints.maxHeight >= 240;
+                      final contentWidth = constraints.maxWidth;
+                      final outerPadding = isMobileLayout
+                          ? const EdgeInsets.fromLTRB(6, 6, 6, 6)
+                          : const EdgeInsets.fromLTRB(28, 24, 28, 24);
+                      final editorPadding = isMobileLayout
+                          ? const EdgeInsets.fromLTRB(16, 14, 16, 20)
+                          : const EdgeInsets.fromLTRB(20, 18, 20, 18);
+
                       return Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (showPageHeader) ...[
-                              Text(
-                                widget.pageTitle,
-                                key: const ValueKey('workspace-page-title'),
-                                style: Theme.of(context).textTheme.headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                widget.pageKindLabel,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: const Color(0xFF65748F)),
-                              ),
-                              const SizedBox(height: 20),
-                            ] else
-                              Text(
-                                widget.pageTitle,
-                                key: const ValueKey('workspace-page-title'),
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                margin: EdgeInsets.only(
-                                  top: showPageHeader ? 0 : 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFCFDFF),
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(
-                                    color: const Color(0xFFE6EBF6),
+                        padding: outerPadding,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: SizedBox(
+                            width: contentWidth,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (showPageHeader) ...[
+                                  Text(
+                                    widget.pageTitle,
+                                    key: const ValueKey('workspace-page-title'),
+                                    style:
+                                        (isMobileLayout
+                                                ? theme.textTheme.titleLarge
+                                                : theme.textTheme.headlineSmall)
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                            ),
                                   ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    20,
-                                    18,
-                                    20,
-                                    18,
+                                  SizedBox(height: isMobileLayout ? 6 : 8),
+                                  Text(
+                                    widget.pageKindLabel,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
-                                  child: Focus(
-                                    onKeyEvent: (node, event) {
-                                      if (event is! KeyDownEvent) {
-                                        return KeyEventResult.ignored;
-                                      }
-                                      if (event.logicalKey !=
-                                          LogicalKeyboardKey.backspace) {
-                                        return KeyEventResult.ignored;
-                                      }
+                                  SizedBox(height: isMobileLayout ? 12 : 20),
+                                ],
+                                Expanded(
+                                  child: Container(
+                                    width: double.infinity,
+                                    margin: EdgeInsets.zero,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.tintedSurface(
+                                        colorScheme.surface,
+                                        colorScheme.primary,
+                                        amount: isDark ? 0.08 : 0.02,
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        isMobileLayout ? 20 : 24,
+                                      ),
+                                      border: Border.all(
+                                        color: colorScheme.outlineVariant,
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: editorPadding,
+                                      child: Focus(
+                                        onKeyEvent: (node, event) {
+                                          if (event is! KeyDownEvent) {
+                                            return KeyEventResult.ignored;
+                                          }
+                                          if (event.logicalKey !=
+                                              LogicalKeyboardKey.backspace) {
+                                            return KeyEventResult.ignored;
+                                          }
 
-                                      final pendingListShortcutRevert =
-                                          _pendingListShortcutRevert;
-                                      if (pendingListShortcutRevert == null) {
-                                        return KeyEventResult.ignored;
-                                      }
+                                          final pendingListShortcutRevert =
+                                              _pendingListShortcutRevert;
+                                          if (pendingListShortcutRevert ==
+                                              null) {
+                                            return KeyEventResult.ignored;
+                                          }
 
-                                      final applied =
-                                          revertMarkdownListShortcut(
-                                        controller: controller,
-                                        pending: pendingListShortcutRevert,
-                                      );
-                                      if (!applied) {
-                                        return KeyEventResult.ignored;
-                                      }
+                                          final applied =
+                                              revertMarkdownListShortcut(
+                                                controller: controller,
+                                                pending:
+                                                    pendingListShortcutRevert,
+                                              );
+                                          if (!applied) {
+                                            return KeyEventResult.ignored;
+                                          }
 
-                                      setState(() {
-                                        _pendingListShortcutRevert = null;
-                                      });
-                                      return KeyEventResult.handled;
-                                    },
-                                    child: quill.QuillEditor.basic(
-                                      controller: controller,
-                                      focusNode: widget.contentFocusNode,
-                                      scrollController: _scrollController,
-                                      config: quill.QuillEditorConfig(
-                                        placeholder:
-                                            'Write in one continuous page. Use Insert for structure and format from the toolbar.',
-                                        padding: EdgeInsets.zero,
+                                          setState(() {
+                                            _pendingListShortcutRevert = null;
+                                          });
+                                          return KeyEventResult.handled;
+                                        },
+                                        child: quill.QuillEditor.basic(
+                                          controller: controller,
+                                          focusNode: widget.contentFocusNode,
+                                          scrollController: _scrollController,
+                                          config: quill.QuillEditorConfig(
+                                            placeholder:
+                                                'Write in one continuous page. Use the menu for structure and formatting.',
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       );
                     },
@@ -725,307 +757,176 @@ class _PageEditorToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uniqueMetaLabels = <String>{
+    final colorScheme = Theme.of(context).colorScheme;
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
+    final infoLabels = <String>[
+      pageKindLabel,
       for (final label in metaLabels)
         if (label.trim().isNotEmpty) label.trim(),
-    }.toList();
-    final narrow = MediaQuery.sizeOf(context).width < 1120;
+    ];
 
-    final menus = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _ToolbarMenuButton(
-          label: 'File',
-          icon: Icons.insert_drive_file_outlined,
-          itemBuilder: (context) => [
-            const PopupMenuItem<String>(value: 'new', child: Text('New page')),
-            if (canRename)
-              const PopupMenuItem<String>(
-                value: 'rename',
-                child: Text('Rename page'),
-              ),
-            if (canDuplicate)
-              const PopupMenuItem<String>(
-                value: 'duplicate',
-                child: Text('Duplicate page'),
-              ),
-            if (canDelete) const PopupMenuDivider(),
-            if (canDelete)
-              const PopupMenuItem<String>(
-                value: 'delete',
-                child: Text('Delete page'),
-              ),
-          ],
-          onSelected: onFileMenuSelection,
-        ),
-        _ToolbarMenuButton(
-          label: 'Insert',
-          icon: Icons.add_box_outlined,
-          itemBuilder: (context) => const [
-            PopupMenuItem<String>(value: 'heading', child: Text('Heading')),
-            PopupMenuItem<String>(
-              value: 'subheading',
-              child: Text('Subheading'),
-            ),
-            PopupMenuItem<String>(value: 'bullet', child: Text('Bullet list')),
-            PopupMenuItem<String>(
-              value: 'numbered',
-              child: Text('Numbered list'),
-            ),
-            PopupMenuItem<String>(value: 'quote', child: Text('Quote')),
-            PopupMenuItem<String>(value: 'divider', child: Text('Divider')),
-          ],
-          onSelected: onInsertMenuSelection,
-        ),
-        _ToolbarMenuButton(
-          label: 'Bookmarks',
-          icon: Icons.bookmarks_outlined,
-          itemBuilder: (context) => [
-            const PopupMenuItem<String>(
-              value: 'new',
-              child: Text('Create bookmark'),
-            ),
-            if (bookmarks.isNotEmpty) const PopupMenuDivider(),
-            if (bookmarks.isNotEmpty)
-              PopupMenuItem<String>(
-                enabled: false,
-                height: 28,
-                child: Text(
-                  'Jump to bookmark',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFF61708B),
-                  ),
-                ),
-              ),
-            if (bookmarks.isEmpty)
-              const PopupMenuItem<String>(
-                enabled: false,
-                child: Text('No bookmarks yet'),
-              ),
-            for (final bookmark in bookmarks)
-              PopupMenuItem<String>(
-                value: 'bookmark:${bookmark.id}',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(bookmark.label),
-                    Text(
-                      bookmark.anchor,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF61708B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-          onSelected: onBookmarksMenuSelection,
-        ),
-      ],
-    );
+    final overflowButton = PopupMenuButton<String>(
+      tooltip: 'Page actions',
+      onSelected: (value) {
+        if (value.startsWith('file:')) {
+          onFileMenuSelection(value.substring(5));
+          return;
+        }
+        if (value.startsWith('insert:')) {
+          onInsertMenuSelection(value.substring(7));
+          return;
+        }
+        if (value.startsWith('bookmark:')) {
+          onBookmarksMenuSelection(value.substring(9));
+          return;
+        }
 
-    final titleArea = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          titleText,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _ToolbarLabel(text: pageKindLabel),
-            for (final label in uniqueMetaLabels) _ToolbarLabel(text: label),
-          ],
-        ),
-      ],
-    );
-
-    final actions = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
+        switch (value) {
+          case 'pin':
+            onTogglePinned?.call();
+            return;
+          case 'format:bold':
+            onToggleBold();
+            return;
+          case 'format:italic':
+            onToggleItalic();
+            return;
+          case 'format:underline':
+            onToggleUnderline();
+            return;
+          case 'format:link':
+            onAddLink();
+            return;
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<String>(value: 'file:new', child: Text('New page')),
         if (onTogglePinned != null)
-          IconButton(
-            onPressed: onTogglePinned,
-            tooltip: isPinned ? 'Unpin page' : 'Pin page',
-            icon: Icon(
-              isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
-            ),
+          PopupMenuItem<String>(
+            value: 'pin',
+            child: Text(isPinned ? 'Unpin page' : 'Pin page'),
           ),
-        _FormatButton(
-          icon: Icons.format_bold_rounded,
-          tooltip: 'Bold',
-          selected: boldEnabled,
-          onPressed: onToggleBold,
+        if (canRename)
+          const PopupMenuItem<String>(
+            value: 'file:rename',
+            child: Text('Rename page'),
+          ),
+        if (canDuplicate)
+          const PopupMenuItem<String>(
+            value: 'file:duplicate',
+            child: Text('Duplicate page'),
+          ),
+        if (canDelete)
+          const PopupMenuItem<String>(
+            value: 'file:delete',
+            child: Text('Delete page'),
+          ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'insert:heading',
+          child: Text('Insert heading'),
         ),
-        _FormatButton(
-          icon: Icons.format_italic_rounded,
-          tooltip: 'Italic',
-          selected: italicEnabled,
-          onPressed: onToggleItalic,
+        const PopupMenuItem<String>(
+          value: 'insert:subheading',
+          child: Text('Insert subheading'),
         ),
-        _FormatButton(
-          icon: Icons.format_underlined_rounded,
-          tooltip: 'Underline',
-          selected: underlineEnabled,
-          onPressed: onToggleUnderline,
+        const PopupMenuItem<String>(
+          value: 'insert:bullet',
+          child: Text('Insert bullet list'),
         ),
-        _FormatButton(
-          icon: Icons.link_rounded,
-          tooltip: linkEnabled ? 'Edit link' : 'Add link',
-          selected: linkEnabled,
-          onPressed: onAddLink,
+        const PopupMenuItem<String>(
+          value: 'insert:numbered',
+          child: Text('Insert numbered list'),
         ),
-        FilledButton.icon(
-          onPressed: hasChanges ? onSavePage : null,
-          icon: const Icon(Icons.save_outlined),
-          label: Text(hasChanges ? 'Save' : 'Saved'),
+        const PopupMenuItem<String>(
+          value: 'insert:quote',
+          child: Text('Insert quote'),
         ),
+        const PopupMenuItem<String>(
+          value: 'insert:divider',
+          child: Text('Insert divider'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'format:bold',
+          child: Text(boldEnabled ? 'Remove bold' : 'Bold'),
+        ),
+        PopupMenuItem<String>(
+          value: 'format:italic',
+          child: Text(italicEnabled ? 'Remove italic' : 'Italic'),
+        ),
+        PopupMenuItem<String>(
+          value: 'format:underline',
+          child: Text(underlineEnabled ? 'Remove underline' : 'Underline'),
+        ),
+        PopupMenuItem<String>(
+          value: 'format:link',
+          child: Text(linkEnabled ? 'Edit link' : 'Add link'),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'bookmark:new',
+          child: Text('Create bookmark'),
+        ),
+        if (bookmarks.isEmpty)
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: Text('No bookmarks yet'),
+          ),
+        for (final bookmark in bookmarks)
+          PopupMenuItem<String>(
+            value: 'bookmark:bookmark:${bookmark.id}',
+            child: Text(bookmark.label),
+          ),
       ],
-    );
-
-    if (narrow) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            menus,
-            const SizedBox(height: 12),
-            titleArea,
-            const SizedBox(height: 12),
-            actions,
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          menus,
-          const SizedBox(width: 12),
-          Expanded(child: titleArea),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Align(alignment: Alignment.topRight, child: actions),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToolbarMenuButton extends StatelessWidget {
-  const _ToolbarMenuButton({
-    required this.label,
-    required this.icon,
-    required this.itemBuilder,
-    required this.onSelected,
-  });
-
-  final String label;
-  final IconData icon;
-  final PopupMenuItemBuilder<String> itemBuilder;
-  final PopupMenuItemSelected<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      itemBuilder: itemBuilder,
-      onSelected: onSelected,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7FAFF),
+          color: AppTheme.tintedSurface(
+            colorScheme.surface,
+            colorScheme.primary,
+            amount: 0.04,
+          ),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFDCE4F4)),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: const Color(0xFF55657F)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF44546E),
+        child: const Icon(Icons.more_horiz_rounded),
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        isMobileLayout ? 8 : 16,
+        isMobileLayout ? 8 : 12,
+        isMobileLayout ? 8 : 16,
+        isMobileLayout ? 8 : 12,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              infoLabels.join(' â€¢ '),
+              maxLines: isMobileLayout ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.35,
               ),
             ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.arrow_drop_down_rounded,
-              size: 18,
-              color: Color(0xFF55657F),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FormatButton extends StatelessWidget {
-  const _FormatButton({
-    required this.icon,
-    required this.tooltip,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final bool selected;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          backgroundColor: selected
-              ? const Color(0xFFEAF1FF)
-              : const Color(0xFFF7FAFF),
-          foregroundColor: selected
-              ? const Color(0xFF3F67B8)
-              : const Color(0xFF55657F),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFFDCE4F4)),
           ),
-        ),
-        icon: Icon(icon),
+          if (hasChanges) ...[
+            if (!isMobileLayout) const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: onSavePage,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save'),
+            ),
+            const SizedBox(width: 8),
+          ] else
+            const SizedBox(width: 8),
+          overflowButton,
+        ],
       ),
-    );
-  }
-}
-
-class _ToolbarLabel extends StatelessWidget {
-  const _ToolbarLabel({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: const Color(0xFF61708B)),
     );
   }
 }

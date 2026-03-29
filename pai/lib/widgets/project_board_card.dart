@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/board_project.dart';
+import '../theme/app_theme.dart';
 import 'status_chip.dart';
 
 class ProjectBoardCard extends StatelessWidget {
@@ -13,6 +14,7 @@ class ProjectBoardCard extends StatelessWidget {
     this.width = 220,
     this.height = 196,
     this.briefMaxLines = 2,
+    this.dense = false,
   });
 
   final BoardProject boardProject;
@@ -22,28 +24,50 @@ class ProjectBoardCard extends StatelessWidget {
   final double? width;
   final double? height;
   final int briefMaxLines;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = theme.brightness == Brightness.dark;
     final isCompactCard = (width ?? 220) <= 220 || (height ?? 196) <= 196;
-    final visibleTags = boardProject.tags.take(isCompactCard ? 1 : 2).toList();
+    final useDenseSpacing = dense || isCompactCard;
+    final visibleTags = boardProject.tags
+        .take(useDenseSpacing ? 1 : 2)
+        .toList();
     final remainingTagCount = boardProject.tags.length - visibleTags.length;
-    final contentPadding = isCompactCard ? 12.0 : 14.0;
-    final titleStyle = isCompactCard
+    final contentPadding = dense
+        ? 10.0
+        : isCompactCard
+        ? 12.0
+        : 14.0;
+    final titleStyle = useDenseSpacing
         ? Theme.of(
             context,
           ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)
         : Theme.of(
             context,
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700);
-    final briefLines = isCompactCard ? 1 : briefMaxLines;
-    final tagIconSize = isCompactCard ? 12.0 : 16.0;
-    final tagLabelStyle = isCompactCard
+    final briefLines = dense
+        ? 1
+        : isCompactCard
+        ? 1
+        : briefMaxLines;
+    final tagIconSize = useDenseSpacing ? 12.0 : 16.0;
+    final tagLabelStyle = useDenseSpacing
         ? Theme.of(context).textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w700,
             height: 1,
           )
         : null;
+    final bodyGap = dense
+        ? 6.0
+        : isCompactCard
+        ? 8.0
+        : 10.0;
+    final progressGap = dense ? 4.0 : 6.0;
     final scale = isPressed
         ? 0.992
         : isDragging
@@ -61,10 +85,10 @@ class ProjectBoardCard extends StatelessWidget {
         : 0.0;
 
     final borderColor = isDragging
-        ? const Color(0xFF9AA7D9)
+        ? colorScheme.primary.withValues(alpha: isDark ? 0.7 : 0.5)
         : isHovered
-        ? const Color(0xFFC9D3F3)
-        : const Color(0xFFD9DFEE);
+        ? colorScheme.primary.withValues(alpha: isDark ? 0.46 : 0.24)
+        : colorScheme.outlineVariant;
 
     final shadowOpacity = isDragging
         ? 0.22
@@ -86,12 +110,14 @@ class ProjectBoardCard extends StatelessWidget {
           width: width,
           height: height,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: borderColor),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF8090C2).withValues(alpha: shadowOpacity),
+                color: paiColors.panelShadow.withValues(
+                  alpha: isDark ? shadowOpacity * 1.4 : shadowOpacity,
+                ),
                 blurRadius: isDragging ? 26 : 18,
                 offset: Offset(0, isDragging ? 16 : 10),
               ),
@@ -117,19 +143,19 @@ class ProjectBoardCard extends StatelessWidget {
                     StatusChip(status: boardProject.status),
                   ],
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: dense ? 4 : 6),
                 Flexible(
                   child: Text(
                     boardProject.brief,
                     maxLines: briefLines,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF53627F),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                       height: 1.3,
                     ),
                   ),
                 ),
-                SizedBox(height: isCompactCard ? 8 : 10),
+                SizedBox(height: bodyGap),
                 Row(
                   children: [
                     Text(
@@ -141,26 +167,30 @@ class ProjectBoardCard extends StatelessWidget {
                     const Spacer(),
                     Text(
                       '${(boardProject.progress * 100).round()}%',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(0xFF5E6B8A),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: progressGap),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
                     value: boardProject.progress,
-                    minHeight: isCompactCard ? 5 : 6,
-                    backgroundColor: const Color(0xFFE7E9F4),
+                    minHeight: useDenseSpacing ? 5 : 6,
+                    backgroundColor: AppTheme.tintedSurface(
+                      colorScheme.surface,
+                      colorScheme.primary,
+                      amount: isDark ? 0.16 : 0.08,
+                    ),
                   ),
                 ),
-                SizedBox(height: isCompactCard ? 8 : 10),
+                SizedBox(height: bodyGap),
                 Wrap(
-                  spacing: isCompactCard ? 6 : 8,
-                  runSpacing: isCompactCard ? 6 : 8,
+                  spacing: useDenseSpacing ? 6 : 8,
+                  runSpacing: useDenseSpacing ? 6 : 8,
                   children: [
                     for (final tag in visibleTags)
                       Chip(
@@ -171,14 +201,11 @@ class ProjectBoardCard extends StatelessWidget {
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         padding: EdgeInsets.zero,
                         labelPadding: EdgeInsets.symmetric(
-                          horizontal: isCompactCard ? 6 : 8,
+                          horizontal: useDenseSpacing ? 6 : 8,
                         ),
                         labelStyle: tagLabelStyle,
                         label: Text(tag),
-                        avatar: Icon(
-                          Icons.sell_outlined,
-                          size: tagIconSize,
-                        ),
+                        avatar: Icon(Icons.sell_outlined, size: tagIconSize),
                       ),
                     if (remainingTagCount > 0)
                       Chip(
@@ -189,7 +216,7 @@ class ProjectBoardCard extends StatelessWidget {
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         padding: EdgeInsets.zero,
                         labelPadding: EdgeInsets.symmetric(
-                          horizontal: isCompactCard ? 6 : 8,
+                          horizontal: useDenseSpacing ? 6 : 8,
                         ),
                         labelStyle: tagLabelStyle,
                         label: Text('+$remainingTagCount'),

@@ -11,6 +11,7 @@ import '../models/project_document.dart';
 import '../models/session_note.dart';
 import '../services/browser_speech_to_text.dart';
 import '../services/project_document_content_codec.dart';
+import '../theme/app_theme.dart';
 import '../widgets/project_page_editor.dart';
 import '../widgets/status_chip.dart';
 
@@ -438,6 +439,41 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
     if (shouldPersist) {
       unawaited(_persistLastOpenedPage(page.id));
     }
+  }
+
+  Future<void> _openMobileNavigatorSheet() async {
+    final selectedPage = _selectedPage ?? _defaultPageForProject();
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return FractionallySizedBox(
+          heightFactor: 0.82,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+            child: _WorkspaceSidebar(
+              projects: widget.projects,
+              selectedProject: _selectedProject,
+              selectedPageId: selectedPage.id,
+              briefPage: _briefPage,
+              pinnedPages: _pinnedPages,
+              documentPages: _documentPages,
+              isExpanded: true,
+              projectSelectorAnchorKey: _projectSelectorAnchorKey,
+              onProjectSelected: (project) {
+                Navigator.of(sheetContext).pop();
+                _selectProject(project);
+              },
+              onPageSelected: (page) {
+                Navigator.of(sheetContext).pop();
+                _selectPage(page);
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _toggleProjectHub() {
@@ -1056,6 +1092,10 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobileLayout = screenWidth < 900;
     final selectedPage = _selectedPage ?? _defaultPageForProject();
     final assistantPane = _WorkspaceDrawer(
       questionController: _questionController,
@@ -1065,9 +1105,11 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
     );
 
     return SafeArea(
+      bottom: !isMobileLayout,
       child: Scaffold(
         key: _assistantDrawerScaffoldKey,
         backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: true,
         endDrawerEnableOpenDragGesture: false,
         onEndDrawerChanged: (isOpen) {
           if (_isAssistantDrawerOpen != isOpen) {
@@ -1077,6 +1119,11 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
         endDrawer: SizedBox(
           width: _assistantDrawerWidth(context),
           child: Drawer(
+            backgroundColor: AppTheme.tintedSurface(
+              colorScheme.surface,
+              colorScheme.primary,
+              amount: theme.brightness == Brightness.dark ? 0.08 : 0.02,
+            ),
             child: SafeArea(
               child: Shortcuts(
                 shortcuts: const <ShortcutActivator, Intent>{
@@ -1101,7 +1148,12 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
           ),
         ),
         body: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(
+            isMobileLayout ? 10 : 20,
+            isMobileLayout ? 8 : 20,
+            isMobileLayout ? 10 : 20,
+            isMobileLayout ? 0 : 20,
+          ),
           child: Column(
             children: [
               _WorkspaceTopBar(
@@ -1114,7 +1166,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                 projectSwitchAnimation: _projectSwitchController,
                 isProjectSwitchAnimating: _projectSwitchController.isAnimating,
                 projectTitleAnchorKey: _projectTitleAnchorKey,
+                isMobileLayout: isMobileLayout,
                 onProjectNamePressed: _toggleProjectHub,
+                onOpenNavigatorSheet: _openMobileNavigatorSheet,
                 onNewPage: () {
                   unawaited(_createPage());
                 },
@@ -1123,7 +1177,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                   setState(() => _isSidebarExpanded = !_isSidebarExpanded);
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: isMobileLayout ? 8 : 16),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -1248,7 +1302,20 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                       );
                     }
 
+                    if (isMobileLayout) {
+                      return _ProjectWorkspaceSwitchTransition(
+                        key: ValueKey('project-shell-${_selectedProject.id}'),
+                        shellKey: _projectWorkspaceShellKey,
+                        primaryAnchorKey: _projectTitleAnchorKey,
+                        fallbackAnchorKey: _projectSelectorAnchorKey,
+                        animation: _projectSwitchController,
+                        enabled: _projectSwitchController.isAnimating,
+                        child: mainPanel,
+                      );
+                    }
+
                     return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         SizedBox(height: 300, child: sidebar),
                         const SizedBox(height: 16),
@@ -1289,7 +1356,9 @@ class _WorkspaceTopBar extends StatelessWidget {
     required this.projectSwitchAnimation,
     required this.isProjectSwitchAnimating,
     required this.projectTitleAnchorKey,
+    required this.isMobileLayout,
     required this.onProjectNamePressed,
+    required this.onOpenNavigatorSheet,
     required this.onNewPage,
     required this.onToggleAssistantDrawer,
     required this.onToggleSidebar,
@@ -1304,13 +1373,20 @@ class _WorkspaceTopBar extends StatelessWidget {
   final Animation<double> projectSwitchAnimation;
   final bool isProjectSwitchAnimating;
   final GlobalKey projectTitleAnchorKey;
+  final bool isMobileLayout;
   final VoidCallback onProjectNamePressed;
+  final VoidCallback onOpenNavigatorSheet;
   final VoidCallback onNewPage;
   final VoidCallback onToggleAssistantDrawer;
   final VoidCallback onToggleSidebar;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final breadcrumb = isShowingProjectHub
+        ? 'Projects / ${project.title} / Project Hub'
+        : 'Projects / ${project.title} / ${page.title}';
+
     Widget projectTitleButton = KeyedSubtree(
       key: projectTitleAnchorKey,
       child: InkWell(
@@ -1338,7 +1414,7 @@ class _WorkspaceTopBar extends StatelessWidget {
                     ? Icons.flip_to_front_rounded
                     : Icons.flip_to_back_rounded,
                 size: 18,
-                color: const Color(0xFF5A6B88),
+                color: colorScheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -1361,8 +1437,12 @@ class _WorkspaceTopBar extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: const Color(
-                  0xFFDEE9FF,
+                color: AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  colorScheme.primary,
+                  amount: Theme.of(context).brightness == Brightness.dark
+                      ? 0.18
+                      : 0.08,
                 ).withValues(alpha: highlightOpacity),
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -1373,77 +1453,176 @@ class _WorkspaceTopBar extends StatelessWidget {
       );
     }
 
-    return Row(
-      children: [
-        IconButton(
-          tooltip: isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar',
-          onPressed: onToggleSidebar,
-          icon: Icon(
-            isSidebarExpanded ? Icons.menu_open_rounded : Icons.menu_rounded,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useMobileTopBar = isMobileLayout || constraints.maxWidth < 760;
+
+        if (useMobileTopBar) {
+          return Row(
             children: [
-              Text(
-                isShowingProjectHub
-                    ? 'Projects / ${project.title} / Project Hub'
-                    : 'Projects / ${project.title} / ${page.title}',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: const Color(0xFF66758F)),
+              IconButton(
+                key: const ValueKey('mobile-workspace-navigator'),
+                tooltip: 'Project pages',
+                onPressed: onOpenNavigatorSheet,
+                icon: const Icon(Icons.menu_rounded),
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Flexible(child: projectTitleButton),
-                  const SizedBox(width: 10),
-                  StatusChip(status: project.status),
-                  if (isShowingProjectHub) ...[
-                    const SizedBox(width: 10),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      'Project Hub',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(0xFF4767B4),
-                        fontWeight: FontWeight.w700,
+                      project.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isShowingProjectHub ? 'Project hub' : page.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
+                ),
+              ),
+              if (hasUnsavedChanges)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              PopupMenuButton<String>(
+                tooltip: 'More actions',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'pages':
+                      onOpenNavigatorSheet();
+                      return;
+                    case 'hub':
+                      onProjectNamePressed();
+                      return;
+                    case 'assistant':
+                      onToggleAssistantDrawer();
+                      return;
+                    case 'new-page':
+                      onNewPage();
+                      return;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem<String>(
+                    value: 'pages',
+                    child: Text('Project pages'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'hub',
+                    child: Text(
+                      isShowingProjectHub ? 'Open editor' : 'Open project hub',
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'assistant',
+                    child: Text(
+                      isAssistantDrawerOpen ? 'Hide AI panel' : 'Open AI panel',
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'new-page',
+                    child: Text('New page'),
+                  ),
                 ],
+                icon: const Icon(Icons.more_horiz_rounded),
               ),
             ],
-          ),
-        ),
-        if (hasUnsavedChanges)
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Text(
-              'Unsaved changes',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: const Color(0xFF4867B7),
-                fontWeight: FontWeight.w700,
+          );
+        }
+
+        return Row(
+          children: [
+            IconButton(
+              tooltip: isSidebarExpanded
+                  ? 'Collapse sidebar'
+                  : 'Expand sidebar',
+              onPressed: onToggleSidebar,
+              icon: Icon(
+                isSidebarExpanded
+                    ? Icons.menu_open_rounded
+                    : Icons.menu_rounded,
               ),
             ),
-          ),
-        OutlinedButton.icon(
-          onPressed: onNewPage,
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('New Page'),
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          key: const ValueKey('assistant-drawer-button'),
-          onPressed: onToggleAssistantDrawer,
-          icon: Icon(
-            isAssistantDrawerOpen
-                ? Icons.auto_awesome_motion_rounded
-                : Icons.auto_awesome_outlined,
-          ),
-          label: const Text('AI'),
-        ),
-      ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    breadcrumb,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Flexible(child: projectTitleButton),
+                      const SizedBox(width: 10),
+                      StatusChip(status: project.status),
+                      if (isShowingProjectHub) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          'Project Hub',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (hasUnsavedChanges)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Text(
+                  'Unsaved changes',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            OutlinedButton.icon(
+              onPressed: onNewPage,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New Page'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              key: const ValueKey('assistant-drawer-button'),
+              onPressed: onToggleAssistantDrawer,
+              icon: Icon(
+                isAssistantDrawerOpen
+                    ? Icons.auto_awesome_motion_rounded
+                    : Icons.auto_awesome_outlined,
+              ),
+              label: const Text('AI'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1545,11 +1724,14 @@ class _WorkspaceSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFDDE4F2)),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1587,9 +1769,15 @@ class _WorkspaceSidebar extends StatelessWidget {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF7FAFF),
+                            color: AppTheme.tintedSurface(
+                              colorScheme.surface,
+                              colorScheme.primary,
+                              amount: isDark ? 0.12 : 0.04,
+                            ),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFDCE4F4)),
+                            border: Border.all(
+                              color: colorScheme.outlineVariant,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -1622,11 +1810,15 @@ class _WorkspaceSidebar extends StatelessWidget {
                       child: CircleAvatar(
                         key: projectSelectorAnchorKey,
                         radius: 22,
-                        backgroundColor: const Color(0xFFEAF1FF),
+                        backgroundColor: AppTheme.tintedSurface(
+                          colorScheme.surface,
+                          colorScheme.primary,
+                          amount: isDark ? 0.24 : 0.12,
+                        ),
                         child: Text(
                           selectedProject.title.characters.first.toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF3256A8),
+                          style: TextStyle(
+                            color: colorScheme.primary,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -1634,7 +1826,7 @@ class _WorkspaceSidebar extends StatelessWidget {
                     ),
                   ),
           ),
-          const Divider(height: 1, color: Color(0xFFE7ECF5)),
+          Divider(height: 1, color: colorScheme.outlineVariant),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(8),
@@ -1687,6 +1879,7 @@ class _WorkspacePageSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (pages.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1703,7 +1896,7 @@ class _WorkspacePageSection extends StatelessWidget {
                 title,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF62718B),
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -1738,6 +1931,9 @@ class _WorkspacePageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1751,13 +1947,21 @@ class _WorkspacePageTile extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFEFF4FF)
-                : const Color(0xFFF9FBFF),
+                ? AppTheme.tintedSurface(
+                    colorScheme.surface,
+                    colorScheme.primary,
+                    amount: isDark ? 0.22 : 0.1,
+                  )
+                : AppTheme.tintedSurface(
+                    colorScheme.surface,
+                    colorScheme.primary,
+                    amount: isDark ? 0.1 : 0.03,
+                  ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFFBFD0F3)
-                  : const Color(0xFFE2E8F3),
+                  ? colorScheme.primary.withValues(alpha: isDark ? 0.46 : 0.24)
+                  : colorScheme.outlineVariant,
             ),
           ),
           child: Row(
@@ -1769,8 +1973,8 @@ class _WorkspacePageTile extends StatelessWidget {
                 _iconForPage(page),
                 size: 18,
                 color: isSelected
-                    ? const Color(0xFF4169BA)
-                    : const Color(0xFF677791),
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
               ),
               if (isExpanded) ...[
                 const SizedBox(width: 10),
@@ -2025,266 +2229,366 @@ class _ProjectHubPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('project-hub-view'),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFDDE4F2)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF7F94C8).withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 26, 28, 26),
-        child: ListView(
-          children: [
-            Text(
-              'Project Hub',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = theme.brightness == Brightness.dark;
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final contentWidth = isMobileLayout
+            ? (constraints.maxWidth * 0.9)
+                  .clamp(0.0, constraints.maxWidth)
+                  .toDouble()
+            : constraints.maxWidth;
+        final shellPadding = isMobileLayout
+            ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
+            : const EdgeInsets.fromLTRB(28, 26, 28, 26);
+        final sectionPadding = isMobileLayout
+            ? const EdgeInsets.all(16)
+            : const EdgeInsets.all(20);
+
+        Widget buildSpeechButton() {
+          return OutlinedButton.icon(
+            key: const ValueKey('project-hub-speech-button'),
+            onPressed: onToggleSpeechToText,
+            icon: Icon(
+              isSpeechToTextListening
+                  ? Icons.mic_rounded
+                  : Icons.mic_none_rounded,
+              color: isSpeechToTextListening ? colorScheme.error : null,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Sessions and recordings live here, separate from the page editor and separate from the assistant.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF61708B)),
+            label: Text(
+              isSpeechToTextListening
+                  ? 'Listening'
+                  : isSpeechToTextAvailable
+                  ? 'Dictate'
+                  : 'Speech Unavailable',
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF8FBFF), Color(0xFFF2F6FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          );
+        }
+
+        final recordSessionButton = isMobileLayout
+            ? SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const ValueKey('project-hub-record-session'),
+                  onPressed: onShowSessionComposer,
+                  icon: const Icon(Icons.mic_rounded),
+                  label: Text(
+                    isSessionComposerVisible
+                        ? 'Recording In Progress'
+                        : 'Record Session',
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFD8E3F7)),
+              )
+            : FilledButton.icon(
+                key: const ValueKey('project-hub-record-session'),
+                onPressed: onShowSessionComposer,
+                icon: const Icon(Icons.mic_rounded),
+                label: Text(
+                  isSessionComposerVisible
+                      ? 'Recording In Progress'
+                      : 'Record Session',
+                ),
+              );
+
+        return Container(
+          key: const ValueKey('project-hub-view'),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(isMobileLayout ? 24 : 28),
+            border: Border.all(color: colorScheme.outlineVariant),
+            boxShadow: [
+              BoxShadow(
+                color: paiColors.panelShadow.withValues(
+                  alpha: isDark ? 0.18 : 0.08,
+                ),
+                blurRadius: isMobileLayout ? 18 : 24,
+                offset: Offset(0, isMobileLayout ? 10 : 14),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE6EEFF),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.mic_none_rounded,
-                          color: Color(0xFF4268B8),
+            ],
+          ),
+          child: Padding(
+            padding: shellPadding,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: contentWidth,
+                child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(context).bottom + 12,
+                  ),
+                  children: [
+                    if (!isMobileLayout) ...[
+                      Text(
+                        'Project Hub',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Record Session',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Sessions and recordings live here, separate from the page editor and separate from the assistant.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    Container(
+                      padding: sectionPadding,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.tintedSurface(
+                              colorScheme.surface,
+                              colorScheme.primary,
+                              amount: isDark ? 0.16 : 0.04,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Capture a session note, save it to this project, and optionally turn it into next steps.',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: const Color(0xFF61708B)),
+                            AppTheme.tintedSurface(
+                              colorScheme.surface,
+                              colorScheme.secondary,
+                              amount: isDark ? 0.14 : 0.03,
                             ),
                           ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: colorScheme.outlineVariant),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    key: const ValueKey('project-hub-record-session'),
-                    onPressed: onShowSessionComposer,
-                    icon: const Icon(Icons.mic_rounded),
-                    label: Text(
-                      isSessionComposerVisible
-                          ? 'Recording In Progress'
-                          : 'Record Session',
-                    ),
-                  ),
-                  if (isSessionComposerVisible) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Text(
-                          'What happened',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const Spacer(),
-                        OutlinedButton.icon(
-                          key: const ValueKey('project-hub-speech-button'),
-                          onPressed: onToggleSpeechToText,
-                          icon: Icon(
-                            isSpeechToTextListening
-                                ? Icons.mic_rounded
-                                : Icons.mic_none_rounded,
-                            color: isSpeechToTextListening
-                                ? const Color(0xFFC24A4A)
-                                : null,
-                          ),
-                          label: Text(
-                            isSpeechToTextListening
-                                ? 'Listening'
-                                : isSpeechToTextAvailable
-                                ? 'Dictate'
-                                : 'Speech Unavailable',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      key: const ValueKey('project-hub-session-field'),
-                      controller: sessionController,
-                      minLines: 4,
-                      maxLines: 8,
-                      onChanged: onRecapChanged,
-                      decoration: const InputDecoration(
-                        hintText: 'What happened in this session?',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    if (isSpeechToTextListening ||
-                        liveSessionTranscript.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBF2),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFF0DEC0)),
-                          ),
-                          child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                isSpeechToTextListening
-                                    ? Icons.graphic_eq_rounded
-                                    : Icons.subtitles_outlined,
-                                size: 18,
-                                color: const Color(0xFF9A6B18),
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.tintedSurface(
+                                    colorScheme.surface,
+                                    colorScheme.primary,
+                                    amount: isDark ? 0.24 : 0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Icon(
+                                  Icons.mic_none_rounded,
+                                  color: colorScheme.primary,
+                                ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 14),
                               Expanded(
-                                child: Text(
-                                  liveSessionTranscript.isEmpty
-                                      ? 'Listening for speech...'
-                                      : liveSessionTranscript,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: const Color(0xFF7C6125),
-                                        fontStyle: liveSessionTranscript.isEmpty
-                                            ? FontStyle.italic
-                                            : FontStyle.normal,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Record Session',
+                                      style: theme.textTheme.titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    if (!isMobileLayout) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Capture a session note, save it to this project, and optionally turn it into next steps.',
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
                                       ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          recordSessionButton,
+                          if (isSessionComposerVisible) ...[
+                            const SizedBox(height: 16),
+                            if (isMobileLayout)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'What happened',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  buildSpeechButton(),
+                                ],
+                              )
+                            else
+                              Row(
+                                children: [
+                                  Text(
+                                    'What happened',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  buildSpeechButton(),
+                                ],
+                              ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              key: const ValueKey('project-hub-session-field'),
+                              controller: sessionController,
+                              minLines: isMobileLayout ? 5 : 4,
+                              maxLines: isMobileLayout ? 10 : 8,
+                              onChanged: onRecapChanged,
+                              decoration: const InputDecoration(
+                                hintText: 'What happened in this session?',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            if (isSpeechToTextListening ||
+                                liveSessionTranscript.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: paiColors.warningSurface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: paiColors.warningBorder,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        isSpeechToTextListening
+                                            ? Icons.graphic_eq_rounded
+                                            : Icons.subtitles_outlined,
+                                        size: 18,
+                                        color: paiColors.warningForeground,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          liveSessionTranscript.isEmpty
+                                              ? 'Listening for speech...'
+                                              : liveSessionTranscript,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color:
+                                                    paiColors.warningForeground,
+                                                fontStyle:
+                                                    liveSessionTranscript
+                                                        .isEmpty
+                                                    ? FontStyle.italic
+                                                    : FontStyle.normal,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: onSaveRecap,
+                                  icon: const Icon(Icons.save_outlined),
+                                  label: const Text('Save session'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: onExtractTasksFromRecap,
+                                  icon: const Icon(Icons.auto_fix_high_rounded),
+                                  label: const Text('Extract tasks'),
+                                ),
+                              ],
+                            ),
+                            if (recapTaskCandidates.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              _RecapTaskReview(
+                                tasks: recapTaskCandidates,
+                                selectedTasks: selectedRecapTaskCandidates,
+                                onToggleTask: onToggleRecapTaskCandidate,
+                                onAddSelectedTasks: onAddSelectedRecapTasks,
+                              ),
+                            ],
+                          ],
+                        ],
                       ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: onSaveRecap,
-                          icon: const Icon(Icons.save_outlined),
-                          label: const Text('Save session'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: onExtractTasksFromRecap,
-                          icon: const Icon(Icons.auto_fix_high_rounded),
-                          label: const Text('Extract tasks'),
-                        ),
-                      ],
                     ),
-                    if (recapTaskCandidates.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _RecapTaskReview(
-                        tasks: recapTaskCandidates,
-                        selectedTasks: selectedRecapTaskCandidates,
-                        onToggleTask: onToggleRecapTaskCandidate,
-                        onAddSelectedTasks: onAddSelectedRecapTasks,
+                    const SizedBox(height: 18),
+                    _DrawerSection(
+                      title: 'Recent Sessions',
+                      child: _RecentSessionsSection(sessions: sessions),
+                    ),
+                    _DrawerSection(
+                      title: 'Project Summary',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(briefSummary),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _MetaPill(
+                                icon: Icons.description_outlined,
+                                label: '${stats.pageCount} pages',
+                              ),
+                              _MetaPill(
+                                icon: Icons.push_pin_outlined,
+                                label: '${stats.pinnedCount} pinned',
+                              ),
+                              _MetaPill(
+                                icon: Icons.text_fields_rounded,
+                                label: '${stats.totalWordCount} words',
+                              ),
+                              _MetaPill(
+                                icon: Icons.schedule_rounded,
+                                label: _formatTimestamp(stats.lastEdited),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            _DrawerSection(
-              title: 'Recent Sessions',
-              child: _RecentSessionsSection(sessions: sessions),
-            ),
-            _DrawerSection(
-              title: 'Project Summary',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(briefSummary),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _MetaPill(
-                        icon: Icons.description_outlined,
-                        label: '${stats.pageCount} pages',
-                      ),
-                      _MetaPill(
-                        icon: Icons.push_pin_outlined,
-                        label: '${stats.pinnedCount} pinned',
-                      ),
-                      _MetaPill(
-                        icon: Icons.text_fields_rounded,
-                        label: '${stats.totalWordCount} words',
-                      ),
-                      _MetaPill(
-                        icon: Icons.schedule_rounded,
-                        label: _formatTimestamp(stats.lastEdited),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (project.nextSteps.isNotEmpty)
-              _DrawerSection(
-                title: 'Current Next Steps',
-                child: Column(
-                  children: [
-                    for (final step in project.nextSteps.take(4))
-                      _NextStepTile(
-                        step: step,
-                        isCompleting: completingSteps.contains(step),
-                        onCompleted: () => onCompleteNextStep(step),
+                    ),
+                    if (project.nextSteps.isNotEmpty)
+                      _DrawerSection(
+                        title: 'Current Next Steps',
+                        child: Column(
+                          children: [
+                            for (final step in project.nextSteps.take(4))
+                              _NextStepTile(
+                                step: step,
+                                isCompleting: completingSteps.contains(step),
+                                onCompleted: () => onCompleteNextStep(step),
+                              ),
+                          ],
+                        ),
                       ),
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -2374,13 +2678,19 @@ class _DrawerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FBFF),
+        color: AppTheme.tintedSurface(
+          colorScheme.surface,
+          colorScheme.primary,
+          amount: isDark ? 0.1 : 0.03,
+        ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDDE5F3)),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2412,6 +2722,7 @@ class _NextStepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -2420,9 +2731,9 @@ class _NextStepTile extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFDCE4F4)),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Row(
             children: [
@@ -2472,16 +2783,24 @@ class _SessionEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCompletion = session.type == SessionNoteType.completion;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isCompletion ? const Color(0xFFF5F9FF) : Colors.white,
+      color: isCompletion
+          ? AppTheme.tintedSurface(
+              colorScheme.surface,
+              colorScheme.primary,
+              amount: isDark ? 0.16 : 0.06,
+            )
+          : colorScheme.surface,
       child: ListTile(
         dense: true,
         leading: Icon(
           isCompletion ? Icons.task_alt_rounded : Icons.notes_rounded,
           color: isCompletion
-              ? const Color(0xFF3E67B8)
-              : const Color(0xFF66758F),
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant,
         ),
         title: Text(session.summary),
         subtitle: Text(session.dateLabel),
@@ -2505,13 +2824,14 @@ class _RecapTaskReview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFDCE4F4)),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2551,23 +2871,30 @@ class _MetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.tintedSurface(
+          colorScheme.surface,
+          colorScheme.primary,
+          amount: isDark ? 0.12 : 0.02,
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFDDE4F2)),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF5E6D88)),
+          Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF55647D),
+              color: colorScheme.onSurface,
             ),
           ),
         ],
@@ -2717,7 +3044,7 @@ bool _looksLikeRecapTask(String text) {
   }
 
   final normalized = cleaned.toLowerCase();
-  if (RegExp(r'^(\-|\*|•|\[ ?\]|\d+[.)])\s+').hasMatch(cleaned)) {
+  if (RegExp(r'^(\-|\*|â€¢|\[ ?\]|\d+[.)])\s+').hasMatch(cleaned)) {
     return true;
   }
 
@@ -2761,7 +3088,7 @@ bool _looksLikeRecapTask(String text) {
 String _normalizeRecapTask(String text) {
   var normalized = text.trim();
   normalized = normalized.replaceFirst(
-    RegExp(r'^(\-|\*|•|\[ ?\]|\d+[.)])\s*'),
+    RegExp(r'^(\-|\*|â€¢|\[ ?\]|\d+[.)])\s*'),
     '',
   );
   normalized = normalized.replaceFirst(

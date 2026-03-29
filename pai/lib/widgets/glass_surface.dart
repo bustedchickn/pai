@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
@@ -9,9 +11,9 @@ class GlassSurface extends StatelessWidget {
     this.padding = EdgeInsets.zero,
     this.borderRadius = const BorderRadius.all(Radius.circular(24)),
     this.blurSigma = 18,
-    this.tintColor = const Color(0xFFF8FBFF),
+    this.tintColor,
     this.tintOpacity = 0.66,
-    this.borderColor = const Color(0xFFFFFFFF),
+    this.borderColor,
     this.borderOpacity = 0.5,
     this.gradient,
     this.boxShadow,
@@ -22,9 +24,9 @@ class GlassSurface extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final BorderRadius borderRadius;
   final double blurSigma;
-  final Color tintColor;
+  final Color? tintColor;
   final double tintOpacity;
-  final Color borderColor;
+  final Color? borderColor;
   final double borderOpacity;
   final Gradient? gradient;
   final List<BoxShadow>? boxShadow;
@@ -32,18 +34,27 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final resolvedTintColor = tintColor ?? paiColors.glassTint;
+    final resolvedBorderColor = borderColor ?? paiColors.glassBorder;
+    final resolvedShadow =
+        boxShadow ??
+        [
+          BoxShadow(
+            color: paiColors.glassShadow.withValues(
+              alpha: isDark ? 0.28 : 0.12,
+            ),
+            blurRadius: 24,
+            offset: const Offset(0, 16),
+          ),
+        ];
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        boxShadow:
-            boxShadow ??
-            [
-              BoxShadow(
-                color: const Color(0xFF6B7DAE).withValues(alpha: 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 16),
-              ),
-            ],
+        boxShadow: resolvedShadow,
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
@@ -53,17 +64,19 @@ class GlassSurface extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: borderRadius,
               border: Border.all(
-                color: borderColor.withValues(alpha: borderOpacity),
+                color: resolvedBorderColor.withValues(alpha: borderOpacity),
               ),
-              color: tintColor.withValues(alpha: tintOpacity),
+              color: resolvedTintColor.withValues(alpha: tintOpacity),
               gradient:
                   gradient ??
                   LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.white.withValues(alpha: 0.3),
-                      tintColor.withValues(alpha: tintOpacity),
+                      colorScheme.onSurface.withValues(
+                        alpha: isDark ? 0.08 : 0.05,
+                      ),
+                      resolvedTintColor.withValues(alpha: tintOpacity),
                     ],
                   ),
             ),
@@ -79,8 +92,10 @@ class GlassSurface extends StatelessWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.white.withValues(alpha: highlightOpacity),
-                            Colors.white.withValues(alpha: 0),
+                            colorScheme.onSurface.withValues(
+                              alpha: highlightOpacity * (isDark ? 0.36 : 1),
+                            ),
+                            colorScheme.onSurface.withValues(alpha: 0),
                           ],
                         ),
                       ),

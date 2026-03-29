@@ -9,6 +9,7 @@ import '../models/document_bookmark.dart';
 import '../models/project_document.dart';
 import '../services/document_markdown_shortcuts.dart';
 import '../services/document_selection_wrap.dart';
+import '../theme/app_theme.dart';
 import '../services/project_document_content_codec.dart';
 
 typedef BookmarkCreateCallback =
@@ -171,19 +172,25 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
         index: index,
         len: len,
         data: data,
-        replaceText: (
-          int nextIndex,
-          int nextLen,
-          Object? nextData,
-          TextSelection? nextSelection,
-        ) {
-          _isApplyingEditorTransform = true;
-          try {
-            controller.replaceText(nextIndex, nextLen, nextData, nextSelection);
-          } finally {
-            _isApplyingEditorTransform = false;
-          }
-        },
+        replaceText:
+            (
+              int nextIndex,
+              int nextLen,
+              Object? nextData,
+              TextSelection? nextSelection,
+            ) {
+              _isApplyingEditorTransform = true;
+              try {
+                controller.replaceText(
+                  nextIndex,
+                  nextLen,
+                  nextData,
+                  nextSelection,
+                );
+              } finally {
+                _isApplyingEditorTransform = false;
+              }
+            },
       );
       if (handledSelectionWrap) {
         _pendingListShortcutRevert = null;
@@ -212,7 +219,8 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
     final controller = _controller;
     if (pendingListShortcutRevert != null &&
         controller != null &&
-        (controller.selection.baseOffset != pendingListShortcutRevert.lineStart ||
+        (controller.selection.baseOffset !=
+                pendingListShortcutRevert.lineStart ||
             !controller.selection.isCollapsed)) {
       _pendingListShortcutRevert = null;
     }
@@ -468,9 +476,7 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
                   return;
                 }
 
-                Navigator.of(context).pop(
-                  _LinkDraft(text: label, url: url),
-                );
+                Navigator.of(context).pop(_LinkDraft(text: label, url: url));
               },
               child: const Text('Apply'),
             ),
@@ -604,7 +610,9 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
     if (start < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not find "${bookmark.anchor}" in this document.'),
+          content: Text(
+            'Could not find "${bookmark.anchor}" in this document.',
+          ),
         ),
       );
       return;
@@ -623,6 +631,11 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final paiColors = context.paiColors;
+    final isDark = theme.brightness == Brightness.dark;
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
     final selectedDocument = _selectedDocument;
     final controller = _controller;
     final titleText = widget.documentTitleController.text.trim().isEmpty
@@ -632,16 +645,20 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
     final activeAttributes = selectionStyle?.attributes ?? const {};
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 520, maxHeight: 780),
+      constraints: isMobileLayout
+          ? null
+          : const BoxConstraints(minHeight: 520, maxHeight: 780),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDCE4F4)),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(isMobileLayout ? 18 : 20),
+        border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7288B7).withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
+            color: paiColors.panelShadow.withValues(
+              alpha: isDark ? 0.18 : 0.08,
+            ),
+            blurRadius: isMobileLayout ? 16 : 20,
+            offset: Offset(0, isMobileLayout ? 10 : 12),
           ),
         ],
       ),
@@ -657,10 +674,12 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
             bookmarks: widget.bookmarks,
             currentLineStyleLabel: _labelForSelectionStyle(activeAttributes),
             boldEnabled: activeAttributes.containsKey(quill.Attribute.bold.key),
-            italicEnabled:
-                activeAttributes.containsKey(quill.Attribute.italic.key),
-            underlineEnabled:
-                activeAttributes.containsKey(quill.Attribute.underline.key),
+            italicEnabled: activeAttributes.containsKey(
+              quill.Attribute.italic.key,
+            ),
+            underlineEnabled: activeAttributes.containsKey(
+              quill.Attribute.underline.key,
+            ),
             linkEnabled: activeAttributes.containsKey('link'),
             onFileMenuSelection: _handleFileMenuSelection,
             onInsertMenuSelection: _handleInsertMenuSelection,
@@ -668,7 +687,8 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
             onDocumentTypeChanged: widget.onDocumentTypeChanged,
             onDocumentPinnedChanged: widget.onDocumentPinnedChanged,
             onToggleBold: () => _toggleInlineAttribute(quill.Attribute.bold),
-            onToggleItalic: () => _toggleInlineAttribute(quill.Attribute.italic),
+            onToggleItalic: () =>
+                _toggleInlineAttribute(quill.Attribute.italic),
             onToggleUnderline: () =>
                 _toggleInlineAttribute(quill.Attribute.underline),
             onAddLink: _addLink,
@@ -680,61 +700,93 @@ class _ProjectDocumentEditorState extends State<ProjectDocumentEditor> {
           Expanded(
             child: selectedDocument == null || controller == null
                 ? _EmptyDocumentState(onCreateDocument: widget.onCreateDocument)
-                : Container(
-                    color: const Color(0xFFF7FAFF),
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: const Color(0xFFE3EAF8)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF7288B7).withValues(
-                              alpha: 0.06,
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final contentWidth = isMobileLayout
+                          ? (constraints.maxWidth * 0.9)
+                                .clamp(0.0, constraints.maxWidth)
+                                .toDouble()
+                          : constraints.maxWidth;
+                      final shellPadding = isMobileLayout
+                          ? const EdgeInsets.fromLTRB(10, 10, 10, 12)
+                          : const EdgeInsets.fromLTRB(18, 18, 18, 20);
+                      final editorPadding = isMobileLayout
+                          ? const EdgeInsets.fromLTRB(12, 12, 12, 28)
+                          : const EdgeInsets.fromLTRB(28, 28, 28, 140);
+
+                      return Container(
+                        color: AppTheme.tintedSurface(
+                          colorScheme.surface,
+                          colorScheme.primary,
+                          amount: isDark ? 0.08 : 0.03,
+                        ),
+                        padding: shellPadding,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: SizedBox(
+                            width: contentWidth,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: colorScheme.surface,
+                                borderRadius: BorderRadius.circular(
+                                  isMobileLayout ? 20 : 22,
+                                ),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: paiColors.panelShadow.withValues(
+                                      alpha: isDark ? 0.16 : 0.06,
+                                    ),
+                                    blurRadius: isMobileLayout ? 14 : 18,
+                                    offset: Offset(0, isMobileLayout ? 8 : 10),
+                                  ),
+                                ],
+                              ),
+                              child: Scrollbar(
+                                controller: _scrollController,
+                                thumbVisibility: true,
+                                child: quill.QuillEditor(
+                                  controller: controller,
+                                  focusNode: widget.documentContentFocusNode,
+                                  scrollController: _scrollController,
+                                  config: quill.QuillEditorConfig(
+                                    padding: editorPadding,
+                                    placeholder:
+                                        'Start writing your document...',
+                                    scrollable: true,
+                                    expands: false,
+                                    // ignore: experimental_member_use
+                                    onKeyPressed: (event, node) {
+                                      final pendingListShortcutRevert =
+                                          _pendingListShortcutRevert;
+                                      if (pendingListShortcutRevert == null ||
+                                          !isListShortcutBackspace(event)) {
+                                        return null;
+                                      }
+
+                                      final reverted =
+                                          revertMarkdownListShortcut(
+                                            controller: controller,
+                                            pending: pendingListShortcutRevert,
+                                          );
+                                      if (!reverted) {
+                                        _pendingListShortcutRevert = null;
+                                        return null;
+                                      }
+
+                                      _pendingListShortcutRevert = null;
+                                      return KeyEventResult.handled;
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
-                            blurRadius: 18,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Scrollbar(
-                        controller: _scrollController,
-                        thumbVisibility: true,
-                        child: quill.QuillEditor(
-                          controller: controller,
-                          focusNode: widget.documentContentFocusNode,
-                          scrollController: _scrollController,
-                          config: quill.QuillEditorConfig(
-                            padding: const EdgeInsets.fromLTRB(28, 28, 28, 140),
-                            placeholder: 'Start writing your document...',
-                            scrollable: true,
-                            expands: false,
-                            // ignore: experimental_member_use
-                            onKeyPressed: (event, node) {
-                              final pendingListShortcutRevert =
-                                  _pendingListShortcutRevert;
-                              if (pendingListShortcutRevert == null ||
-                                  !isListShortcutBackspace(event)) {
-                                return null;
-                              }
-
-                              final reverted = revertMarkdownListShortcut(
-                                controller: controller,
-                                pending: pendingListShortcutRevert,
-                              );
-                              if (!reverted) {
-                                _pendingListShortcutRevert = null;
-                                return null;
-                              }
-
-                              _pendingListShortcutRevert = null;
-                              return KeyEventResult.handled;
-                            },
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
           ),
         ],
@@ -798,6 +850,7 @@ class _DocumentToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 980;
@@ -846,7 +899,7 @@ class _DocumentToolbar extends StatelessWidget {
                     child: Text(
                       'Switch document',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(0xFF61708B),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -858,7 +911,7 @@ class _DocumentToolbar extends StatelessWidget {
                         Icon(
                           _iconForDocumentType(document.type),
                           size: 16,
-                          color: const Color(0xFF5C6D88),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -868,12 +921,12 @@ class _DocumentToolbar extends StatelessWidget {
                           ),
                         ),
                         if (document.id == selectedDocument?.id)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(left: 8),
                             child: Icon(
                               Icons.check_rounded,
                               size: 16,
-                              color: Color(0xFF3E67B8),
+                              color: colorScheme.primary,
                             ),
                           ),
                       ],
@@ -936,7 +989,7 @@ class _DocumentToolbar extends StatelessWidget {
                     child: Text(
                       'Jump to bookmark',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(0xFF61708B),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -955,7 +1008,7 @@ class _DocumentToolbar extends StatelessWidget {
                         Text(
                           bookmark.anchor,
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: const Color(0xFF61708B)),
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -1101,10 +1154,7 @@ class _DocumentToolbar extends StatelessWidget {
               Expanded(child: titleArea),
               const SizedBox(width: 12),
               Flexible(
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: actions,
-                ),
+                child: Align(alignment: Alignment.topRight, child: actions),
               ),
             ],
           ),
@@ -1129,33 +1179,40 @@ class _ToolbarMenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return PopupMenuButton<String>(
       itemBuilder: itemBuilder,
       onSelected: onSelected,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7FAFF),
+          color: AppTheme.tintedSurface(
+            colorScheme.surface,
+            colorScheme.primary,
+            amount: isDark ? 0.12 : 0.04,
+          ),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFDCE4F4)),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: const Color(0xFF55657F)),
+            Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
             Text(
               label,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF44546E),
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.arrow_drop_down_rounded,
               size: 18,
-              color: Color(0xFF55657F),
+              color: colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -1172,23 +1229,30 @@ class _ToolbarMetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
+        color: AppTheme.tintedSurface(
+          colorScheme.surface,
+          colorScheme.primary,
+          amount: isDark ? 0.12 : 0.04,
+        ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE4F4)),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF55657F)),
+          Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF44546E),
+              color: colorScheme.onSurface,
             ),
           ),
         ],
@@ -1212,20 +1276,31 @@ class _FormatButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     return Tooltip(
       message: tooltip,
       child: IconButton(
         onPressed: onPressed,
         style: IconButton.styleFrom(
           backgroundColor: selected
-              ? const Color(0xFFEAF1FF)
-              : const Color(0xFFF7FAFF),
+              ? AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  colorScheme.primary,
+                  amount: isDark ? 0.24 : 0.1,
+                )
+              : AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  colorScheme.primary,
+                  amount: isDark ? 0.12 : 0.04,
+                ),
           foregroundColor: selected
-              ? const Color(0xFF3F67B8)
-              : const Color(0xFF55657F),
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFFDCE4F4)),
+            side: BorderSide(color: colorScheme.outlineVariant),
           ),
         ),
         icon: Icon(icon),
@@ -1243,9 +1318,9 @@ class _ToolbarLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(color: const Color(0xFF61708B)),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -1257,40 +1332,68 @@ class _EmptyDocumentState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 560),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF7FAFF),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFDCE4F4)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.edit_document, size: 40, color: Color(0xFF4867B7)),
-            const SizedBox(height: 12),
-            Text(
-              'Open a project document',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = isMobileLayout
+            ? (constraints.maxWidth * 0.9)
+                  .clamp(0.0, constraints.maxWidth)
+                  .toDouble()
+            : math.min(constraints.maxWidth, 560.0);
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(vertical: isMobileLayout ? 12 : 24),
+            child: SizedBox(
+              width: cardWidth,
+              child: Container(
+                padding: EdgeInsets.all(isMobileLayout ? 18 : 24),
+                decoration: BoxDecoration(
+                  color: AppTheme.tintedSurface(
+                    colorScheme.surface,
+                    colorScheme.primary,
+                    amount: isDark ? 0.08 : 0.03,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colorScheme.outlineVariant),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.edit_document,
+                      size: 40,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Open a project document',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'The editor now behaves like one continuous writing surface, with File, Insert, and Bookmarks controls at the top.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: onCreateDocument,
+                      icon: const Icon(Icons.note_add_outlined),
+                      label: const Text('New document'),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'The editor now behaves like one continuous writing surface, with File, Insert, and Bookmarks controls at the top.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onCreateDocument,
-              icon: const Icon(Icons.note_add_outlined),
-              label: const Text('New document'),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
