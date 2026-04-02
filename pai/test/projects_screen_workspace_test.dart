@@ -5,10 +5,7 @@ import 'package:pai/models/project.dart';
 import 'package:pai/screens/projects_screen.dart';
 
 void main() {
-  Widget buildScreen({
-    String? selectedProjectId,
-    List<Project>? projects,
-  }) {
+  Widget buildScreen({String? selectedProjectId, List<Project>? projects}) {
     return MaterialApp(
       home: ProjectsScreen(
         projects: projects ?? mockProjects,
@@ -16,14 +13,11 @@ void main() {
         bookmarks: mockDocumentBookmarks,
         selectedProjectId: selectedProjectId,
         onProjectSaved: (project) async {},
+        onProjectDeleted: (projectId) async {},
         onSessionSaved: (projectId, session) async {},
         onTasksAdded: (projectId, tasks) async {},
-        onTaskCompleted: (
-          projectId,
-          task,
-          completionNote,
-          updatedBrief,
-        ) async {},
+        onTaskCompleted:
+            (projectId, task, completionNote, updatedBrief) async {},
         onDocumentSaved: (document) async {},
         onBookmarkSaved: (bookmark) async {},
         onDocumentDeleted: (documentId) async {},
@@ -51,10 +45,7 @@ void main() {
     await pumpWorkspace(tester, selectedProjectId: '1');
 
     expect(find.text('Implementation backlog'), findsWidgets);
-    expect(
-      find.byKey(const ValueKey('page-nav-d1')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('page-nav-d1')), findsOneWidget);
   });
 
   testWidgets('falls back to brief page when last opened page is missing', (
@@ -65,11 +56,7 @@ void main() {
       ...mockProjects.skip(1),
     ];
 
-    await pumpWorkspace(
-      tester,
-      selectedProjectId: '1',
-      projects: projects,
-    );
+    await pumpWorkspace(tester, selectedProjectId: '1', projects: projects);
 
     expect(find.text('Project Brief'), findsWidgets);
   });
@@ -103,7 +90,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.byKey(const ValueKey('project-hub-view')), findsOneWidget);
-    expect(find.byKey(const ValueKey('project-hub-record-session')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('project-hub-record-session')),
+      findsOneWidget,
+    );
     expect(find.text('Recent Sessions'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('project-hub-toggle')));

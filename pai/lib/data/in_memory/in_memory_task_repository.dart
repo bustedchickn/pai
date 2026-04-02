@@ -26,7 +26,11 @@ class InMemoryTaskRepository implements TaskRepository {
     }
 
     _store.saveProject(
-      project.copyWith(nextSteps: mergedTasks, updatedAt: DateTime.now()),
+      project.copyWith(
+        nextSteps: mergedTasks,
+        updatedAt: DateTime.now(),
+        isDirty: true,
+      ),
     );
   }
 
@@ -50,6 +54,7 @@ class InMemoryTaskRepository implements TaskRepository {
             if (nextStep != task) nextStep,
         ],
         updatedAt: DateTime.now(),
+        isDirty: true,
       ),
     );
     return true;

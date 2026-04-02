@@ -38,4 +38,40 @@ class BoardProject {
       boardPosition: boardPosition ?? this.boardPosition,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'brief': brief,
+      'tags': tags,
+      'status': status,
+      'progress': progress,
+      'boardPosition': {
+        'dx': boardPosition.dx,
+        'dy': boardPosition.dy,
+      },
+    };
+  }
+
+  factory BoardProject.fromJson(Map<String, dynamic> json) {
+    final boardPosition = json['boardPosition'];
+    return BoardProject(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Untitled project',
+      brief: json['brief'] as String? ?? '',
+      tags: [
+        for (final item in (json['tags'] as List<dynamic>? ?? const []))
+          if (item is String) item,
+      ],
+      status: json['status'] as String? ?? 'active',
+      progress: (json['progress'] as num?)?.toDouble() ?? 0,
+      boardPosition: boardPosition is Map<String, dynamic>
+          ? Offset(
+              (boardPosition['dx'] as num?)?.toDouble() ?? 0,
+              (boardPosition['dy'] as num?)?.toDouble() ?? 0,
+            )
+          : Offset.zero,
+    );
+  }
 }

@@ -225,7 +225,10 @@ void main() {
       expect(savedDocument.id, existingDocument.id);
       expect(savedDocument.createdAt, existingDocument.createdAt);
       expect(savedDocument.content, '# Revised notes');
-      expect(savedDocument.updatedAt.isAfter(existingDocument.updatedAt), isTrue);
+      expect(
+        savedDocument.updatedAt.isAfter(existingDocument.updatedAt),
+        isTrue,
+      );
     });
   });
 }
@@ -300,6 +303,24 @@ class _FakeProjectRepository implements ProjectRepository {
   }) async {
     _projects = [..._projects, project];
     _boardProjects = [..._boardProjects, boardProject];
+  }
+
+  @override
+  Future<void> deleteProject(
+    String projectId, {
+    required DateTime deletedAt,
+  }) async {
+    _projects = [
+      for (final project in _projects)
+        if (project.id == projectId)
+          project.copyWith(
+            deletedAt: deletedAt,
+            updatedAt: deletedAt,
+            isDirty: true,
+          )
+        else
+          project,
+    ];
   }
 
   @override

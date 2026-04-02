@@ -17,6 +17,14 @@ class InMemoryProjectRepository implements ProjectRepository {
   }
 
   @override
+  Future<void> deleteProject(
+    String projectId, {
+    required DateTime deletedAt,
+  }) async {
+    _store.softDeleteProject(projectId, deletedAt: deletedAt);
+  }
+
+  @override
   Future<Project?> getProjectById(String projectId) async {
     return _store.projectById(projectId);
   }

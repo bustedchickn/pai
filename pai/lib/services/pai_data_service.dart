@@ -55,6 +55,7 @@ class PaiDataService {
       reminders: const [],
       createdAt: now,
       updatedAt: now,
+      isDirty: true,
     );
     final boardProject = BoardProject(
       id: projectId,
@@ -104,6 +105,7 @@ class PaiDataService {
       final updatedProject = project.copyWith(
         brief: updatedBrief,
         updatedAt: DateTime.now(),
+        isDirty: true,
       );
       await _projectRepository.saveProject(updatedProject);
       await _syncBriefPage(updatedProject);
@@ -121,6 +123,12 @@ class PaiDataService {
         await _projectRepository.saveBoardProject(
           boardProject.copyWith(boardPosition: nextPosition),
         );
+        final project = await _projectRepository.getProjectById(projectId);
+        if (project != null) {
+          await _projectRepository.saveProject(
+            project.copyWith(updatedAt: DateTime.now(), isDirty: true),
+          );
+        }
         return;
       }
     }
@@ -131,16 +139,44 @@ class PaiDataService {
   ) async {
     for (final boardProject in boardProjects) {
       await _projectRepository.saveBoardProject(boardProject);
+      final project = await _projectRepository.getProjectById(boardProject.id);
+      if (project != null) {
+        await _projectRepository.saveProject(
+          project.copyWith(updatedAt: DateTime.now(), isDirty: true),
+        );
+      }
     }
     return _snapshot();
   }
 
   Future<AppDataSnapshot> updateProject(Project project) async {
     final existingProject = await _projectRepository.getProjectById(project.id);
-    await _projectRepository.saveProject(project);
+    final shouldMarkDirty = _hasSyncRelevantProjectChanges(
+      existingProject,
+      project,
+    );
+    final normalizedProject = existingProject == null
+        ? project.copyWith(isDirty: true)
+        : project.copyWith(
+            isDirty: shouldMarkDirty ? true : existingProject.isDirty,
+            lastSyncedAt: existingProject.lastSyncedAt,
+            deletedAt: existingProject.deletedAt,
+            updatedAt: shouldMarkDirty
+                ? project.updatedAt
+                : existingProject.updatedAt,
+          );
+    await _projectRepository.saveProject(normalizedProject);
     if (existingProject == null || existingProject.brief != project.brief) {
-      await _syncBriefPage(project);
+      await _syncBriefPage(normalizedProject);
     }
+    return _snapshot();
+  }
+
+  Future<AppDataSnapshot> deleteProject(String projectId) async {
+    await _projectRepository.deleteProject(
+      projectId,
+      deletedAt: DateTime.now(),
+    );
     return _snapshot();
   }
 
@@ -151,6 +187,9 @@ class PaiDataService {
       document.copyWith(
         createdAt: existing?.createdAt ?? document.createdAt,
         updatedAt: now,
+        lastSyncedAt: existing?.lastSyncedAt,
+        deletedAt: null,
+        isDirty: true,
       ),
     );
     return _snapshot();
@@ -163,7 +202,7 @@ class PaiDataService {
     );
     if (document != null) {
       await _documentRepository.saveDocument(
-        document.copyWith(updatedAt: DateTime.now()),
+        document.copyWith(updatedAt: DateTime.now(), isDirty: true),
       );
     }
     return _snapshot();
@@ -202,8 +241,73 @@ class PaiDataService {
         pinned: false,
         createdAt: existingBrief?.createdAt ?? project.createdAt,
         updatedAt: project.updatedAt,
+        lastSyncedAt: project.lastSyncedAt,
+        isDirty: project.isDirty,
+        deletedAt: project.deletedAt,
         orderIndex: existingBrief?.orderIndex ?? 0,
       ),
     );
+  }
+
+  bool _hasSyncRelevantProjectChanges(Project? existing, Project next) {
+    if (existing == null) {
+      return true;
+    }
+
+    return existing.title != next.title ||
+        existing.status != next.status ||
+        existing.brief != next.brief ||
+        !_sameStringList(existing.tags, next.tags) ||
+        !_sameStringList(existing.nextSteps, next.nextSteps) ||
+        !_sameStringList(existing.blockers, next.blockers) ||
+        !_sameSessions(existing.sessions, next.sessions) ||
+        !_sameReminders(existing.reminders, next.reminders);
+  }
+
+  bool _sameStringList(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _sameSessions(List<SessionNote> left, List<SessionNote> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (var index = 0; index < left.length; index++) {
+      if (left[index].id != right[index].id ||
+          left[index].dateLabel != right[index].dateLabel ||
+          left[index].summary != right[index].summary ||
+          left[index].type != right[index].type) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _sameReminders(List<dynamic> left, List<dynamic> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+
+    for (var index = 0; index < left.length; index++) {
+      final leftReminder = left[index];
+      final rightReminder = right[index];
+      if (leftReminder.id != rightReminder.id ||
+          leftReminder.title != rightReminder.title ||
+          leftReminder.dueLabel != rightReminder.dueLabel ||
+          leftReminder.projectTitle != rightReminder.projectTitle) {
+        return false;
+      }
+    }
+    return true;
   }
 }

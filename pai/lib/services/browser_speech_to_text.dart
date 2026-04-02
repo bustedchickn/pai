@@ -23,5 +23,8 @@ abstract class BrowserSpeechToText {
   void dispose();
 }
 
+// Keyboard dictation already works in Flutter text fields on supported devices.
+// This optional browser helper only inserts recognized text into the current
+// field and does not keep or upload audio recordings.
 BrowserSpeechToText createBrowserSpeechToText() =>
     createBrowserSpeechToTextImpl();

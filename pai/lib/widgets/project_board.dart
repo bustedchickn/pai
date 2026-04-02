@@ -1,4 +1,4 @@
-import 'dart:async';
+                                           import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -23,7 +23,7 @@ class ProjectBoard extends StatefulWidget {
     required this.onAddProjectTap,
     this.onProjectTap,
     this.onProjectDragEnded,
-    this.enableHoverSounds = true,
+    this.enableHoverSounds = false,
     this.viewportHeight,
     this.boardWidth = defaultBoardWidth,
     this.boardHeight = defaultBoardHeight,
@@ -1039,6 +1039,7 @@ class _BoardZoneLabel extends StatelessWidget {
     );
   }
 }
+
 
 
 

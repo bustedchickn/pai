@@ -3,15 +3,15 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-import 'data/firestore/firestore_document_repository.dart';
-import 'data/firestore/firestore_project_repository.dart';
 import 'data/in_memory/in_memory_document_repository.dart';
 import 'data/in_memory/in_memory_pai_store.dart';
 import 'data/in_memory/in_memory_project_repository.dart';
 import 'data/in_memory/in_memory_session_repository.dart';
 import 'data/in_memory/in_memory_task_repository.dart';
+import 'firebase_options.dart';
 import 'models/app_appearance_mode.dart';
 import 'models/app_data_snapshot.dart';
+import 'models/app_sync_state.dart';
 import 'models/board_project.dart';
 import 'models/document_bookmark.dart';
 import 'models/new_project_draft.dart';
@@ -24,13 +24,15 @@ import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
 import 'screens/reminders_screen.dart';
 import 'screens/settings_screen.dart';
-import 'firebase_options.dart';
+import 'services/app_audio_service.dart';
 import 'services/auth_bootstrap_service.dart';
-import 'services/board_position_storage.dart';
+import 'services/local_snapshot_storage.dart';
+import 'services/manual_sync_service.dart';
 import 'services/pai_data_service.dart';
 import 'services/workspace_preferences_storage.dart';
 import 'stats_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/global_sync_bar.dart';
 import 'widgets/new_project_dialog.dart';
 import 'widgets/project_board.dart';
 
@@ -121,11 +123,14 @@ class _AppShellState extends State<AppShell> {
   int selectedIndex = 0;
   int _mobileTabIndex = 0;
 
-  final BoardPositionStorage _boardPositionStorage = BoardPositionStorage();
   final WorkspacePreferencesStorage _workspacePreferencesStorage =
       WorkspacePreferencesStorage();
+  final LocalSnapshotStorage _localSnapshotStorage = LocalSnapshotStorage();
+  final InMemoryPaiStore _store = InMemoryPaiStore();
+  final AppAudioService _audioService = AppAudioService();
   late final AuthBootstrapService _authBootstrapService;
   late final PaiDataService _dataService;
+  late final ManualSyncService _manualSyncService;
 
   List<Project> projects = const [];
   List<BoardProject> boardProjects = const [];
@@ -133,7 +138,13 @@ class _AppShellState extends State<AppShell> {
   List<DocumentBookmark> bookmarks = const [];
   bool _isLoading = true;
   bool _showWorkspaceStats = false;
-  String? _authUserId;
+  bool _isLinkingGoogle = false;
+  AuthBootstrapResult _authResult = const AuthBootstrapResult.local();
+  AppSyncState _syncState = const AppSyncState(
+    status: AppSyncStatus.localOnly,
+    pendingChangesCount: 0,
+    canSync: false,
+  );
   String? _loadError;
   String? selectedProjectId;
   String? _mobileOpenProjectId;
@@ -142,48 +153,43 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    final useFirebase = widget.useFirebase;
-    final store = InMemoryPaiStore();
-    _authBootstrapService = useFirebase
+    _authBootstrapService = widget.useFirebase
         ? FirebaseAuthBootstrapService()
         : const LocalAuthBootstrapService();
-    final projectRepository = useFirebase
-        ? FirestoreProjectRepository(localStore: store)
-        : InMemoryProjectRepository(store);
-    final documentRepository = useFirebase
-        ? FirestoreDocumentRepository(localStore: store)
-        : InMemoryDocumentRepository(store);
     _dataService = PaiDataService(
-      projectRepository: projectRepository,
-      taskRepository: InMemoryTaskRepository(store),
-      sessionRepository: InMemorySessionRepository(store),
-      documentRepository: documentRepository,
+      projectRepository: InMemoryProjectRepository(_store),
+      taskRepository: InMemoryTaskRepository(_store),
+      sessionRepository: InMemorySessionRepository(_store),
+      documentRepository: InMemoryDocumentRepository(_store),
     );
+    _manualSyncService = ManualSyncService(localStore: _store);
+    unawaited(_audioService.warmUp());
     unawaited(_initializeData());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_audioService.dispose());
+    super.dispose();
   }
 
   Future<void> _initializeData() async {
     try {
-      final authResult = await _authBootstrapService.ensureSignedIn();
+      final authResult = await _authBootstrapService
+          .ensureSignedInAnonymously();
+      _authResult = authResult;
+      await _localSnapshotStorage.loadIntoStore(
+        scopeKey: _storageScopeKey,
+        store: _store,
+      );
       final results = await Future.wait<Object>([
         _dataService.load(),
-        _boardPositionStorage.loadPositions(),
         _workspacePreferencesStorage.loadShowWorkspaceStats(),
+        _manualSyncService.loadState(authResult),
       ]);
-      var snapshot = results[0] as AppDataSnapshot;
-      final storedPositions = results[1] as Map<String, Offset>;
-      final showWorkspaceStats = results[2] as bool;
-      if (storedPositions.isNotEmpty) {
-        final restoredBoardProjects = [
-          for (final boardProject in snapshot.boardProjects)
-            boardProject.copyWith(
-              boardPosition:
-                  storedPositions[boardProject.id] ??
-                  boardProject.boardPosition,
-            ),
-        ];
-        snapshot = await _dataService.saveBoardProjects(restoredBoardProjects);
-      }
+      final snapshot = results[0] as AppDataSnapshot;
+      final showWorkspaceStats = results[1] as bool;
+      final syncState = results[2] as AppSyncState;
 
       if (!mounted) {
         return;
@@ -191,8 +197,8 @@ class _AppShellState extends State<AppShell> {
 
       setState(() {
         _applySnapshot(snapshot);
-        _authUserId = authResult.uid;
         _showWorkspaceStats = showWorkspaceStats;
+        _syncState = syncState;
         _isLoading = false;
       });
     } catch (error) {
@@ -207,11 +213,160 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
+  String get _storageScopeKey => _authResult.uid ?? 'local';
+
   void _applySnapshot(AppDataSnapshot snapshot) {
     projects = snapshot.projects;
     boardProjects = snapshot.boardProjects;
     documents = snapshot.documents;
     bookmarks = snapshot.bookmarks;
+
+    final nextSelectedProjectId =
+        snapshot.projects.any((project) => project.id == selectedProjectId)
+        ? selectedProjectId
+        : snapshot.projects.isEmpty
+        ? null
+        : snapshot.projects.first.id;
+    selectedProjectId = nextSelectedProjectId;
+    _mobileOpenProjectId = nextSelectedProjectId == null
+        ? null
+        : _mobileOpenProjectId == null
+        ? null
+        : nextSelectedProjectId;
+  }
+
+  Future<void> _commitSnapshot(
+    AppDataSnapshot snapshot, {
+    AppSyncState? syncState,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _applySnapshot(snapshot);
+      _syncState = syncState ?? _manualSyncService.describeState(_authResult);
+    });
+    await _localSnapshotStorage.save(scopeKey: _storageScopeKey, store: _store);
+  }
+
+  Future<void> _refreshSnapshot() async {
+    final snapshot = await _dataService.load();
+    await _commitSnapshot(snapshot);
+  }
+
+  Future<AppDataSnapshot?> _prepareSnapshotForAuthChange({
+    required String previousScopeKey,
+    required AuthBootstrapResult nextAuthResult,
+  }) async {
+    final nextScopeKey = nextAuthResult.uid ?? 'local';
+    if (nextScopeKey == previousScopeKey) {
+      return null;
+    }
+
+    final loadedExistingSnapshot = await _localSnapshotStorage.loadIntoStore(
+      scopeKey: nextScopeKey,
+      store: _store,
+    );
+    if (!loadedExistingSnapshot) {
+      await _localSnapshotStorage.save(scopeKey: nextScopeKey, store: _store);
+    }
+    return _dataService.load();
+  }
+
+  Future<void> _linkGoogleAccount() async {
+    if (_isLinkingGoogle) {
+      return;
+    }
+
+    final previousScopeKey = _storageScopeKey;
+    await _localSnapshotStorage.save(scopeKey: previousScopeKey, store: _store);
+
+    setState(() => _isLinkingGoogle = true);
+    try {
+      final linkResult = await _authBootstrapService.signInOrLinkGoogle();
+      if (!mounted) {
+        return;
+      }
+
+      final nextAuthResult =
+          linkResult.authResult ??
+          await _authBootstrapService.refreshCurrentUser();
+      final nextSnapshot = linkResult.isSuccess
+          ? await _prepareSnapshotForAuthChange(
+              previousScopeKey: previousScopeKey,
+              nextAuthResult: nextAuthResult,
+            )
+          : null;
+      final nextSyncState = await _manualSyncService.loadState(nextAuthResult);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _authResult = nextAuthResult;
+        if (nextSnapshot != null) {
+          _applySnapshot(nextSnapshot);
+        }
+        _syncState = nextSyncState;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(linkResult.message)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Google sign-in failed: $error')));
+    } finally {
+      if (mounted) {
+        setState(() => _isLinkingGoogle = false);
+      }
+    }
+  }
+
+  Future<void> _syncNow() async {
+    if (!_syncState.canSync) {
+      return;
+    }
+
+    setState(() {
+      _syncState = _manualSyncService.describeState(
+        _authResult,
+        status: AppSyncStatus.syncing,
+      );
+    });
+
+    try {
+      final result = await _manualSyncService.sync(_authResult);
+      await _commitSnapshot(result.snapshot, syncState: result.syncState);
+      unawaited(_audioService.playSyncSuccess());
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PAI finished syncing.')));
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _syncState = _manualSyncService.describeState(
+          _authResult,
+          status: AppSyncStatus.failed,
+          errorMessage: error.toString(),
+        );
+      });
+      unawaited(_audioService.playSyncFailure());
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Sync failed: $error')));
+    }
   }
 
   void updateBoardProjectPosition(String projectId, Offset nextPosition) {
@@ -223,12 +378,18 @@ class _AppShellState extends State<AppShell> {
               : boardProject,
       ];
     });
-    unawaited(_dataService.updateBoardProjectPosition(projectId, nextPosition));
+    unawaited(_persistBoardProjectPosition(projectId, nextPosition));
   }
 
-  void persistBoardProjectPositions([String? _]) {
-    unawaited(_boardPositionStorage.savePositions(boardProjects));
+  Future<void> _persistBoardProjectPosition(
+    String projectId,
+    Offset nextPosition,
+  ) async {
+    await _dataService.updateBoardProjectPosition(projectId, nextPosition);
+    await _refreshSnapshot();
   }
+
+  void persistBoardProjectPositions([String? _]) {}
 
   Offset _defaultBoardPosition() {
     const candidates = [
@@ -274,12 +435,8 @@ class _AppShellState extends State<AppShell> {
       draft: draft,
       boardPosition: _defaultBoardPosition(),
     );
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
-    persistBoardProjectPositions();
+    await _commitSnapshot(snapshot);
+    unawaited(_audioService.playProjectCreated());
   }
 
   Future<void> _showNewProjectDialog(BuildContext context) async {
@@ -318,6 +475,7 @@ class _AppShellState extends State<AppShell> {
       projectSelectionRequestId++;
       selectedIndex = 1;
     });
+    unawaited(_audioService.playProjectOpened());
     unawaited(_loadProjectPages(projectId));
   }
 
@@ -327,6 +485,7 @@ class _AppShellState extends State<AppShell> {
       projectSelectionRequestId++;
       _mobileOpenProjectId = projectId;
     });
+    unawaited(_audioService.playProjectOpened());
     unawaited(_loadProjectPages(projectId));
   }
 
@@ -348,20 +507,12 @@ class _AppShellState extends State<AppShell> {
 
   Future<void> saveSession(String projectId, SessionNote session) async {
     final snapshot = await _dataService.addSession(projectId, session);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> addTasks(String projectId, List<String> tasks) async {
     final snapshot = await _dataService.addTasks(projectId, tasks);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> completeTask(
@@ -376,56 +527,37 @@ class _AppShellState extends State<AppShell> {
       completionNote: completionNote,
       updatedBrief: updatedBrief,
     );
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> saveDocument(ProjectDocument document) async {
     final snapshot = await _dataService.saveDocument(document);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> saveProject(Project project) async {
     final snapshot = await _dataService.updateProject(project);
-    if (!mounted) {
-      return;
-    }
+    await _commitSnapshot(snapshot);
+  }
 
-    setState(() => _applySnapshot(snapshot));
+  Future<void> deleteProject(String projectId) async {
+    final snapshot = await _dataService.deleteProject(projectId);
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> saveBookmark(DocumentBookmark bookmark) async {
     final snapshot = await _dataService.saveBookmark(bookmark);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> deleteDocument(String documentId) async {
     final snapshot = await _dataService.deleteDocument(documentId);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Future<void> _loadProjectPages(String projectId) async {
     final snapshot = await _dataService.loadProjectPages(projectId);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _applySnapshot(snapshot));
+    await _commitSnapshot(snapshot);
   }
 
   Widget _buildAnimatedSection(Widget child, {Object? transitionKey}) {
@@ -465,6 +597,36 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  Widget _buildSyncedContent(BuildContext context, Widget child) {
+    return Column(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Align(
+              alignment: Alignment.topRight,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: GlobalSyncBar(
+                  syncState: _syncState,
+                  onSyncRequested: _syncNow,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: child,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -478,7 +640,7 @@ class _AppShellState extends State<AppShell> {
             padding: const EdgeInsets.all(24),
             child: Text(
               'Could not load app data.\n$_loadError'
-              '${_authUserId == null ? '' : '\nUser: $_authUserId'}',
+              '${_authResult.uid == null ? '' : '\nUser: ${_authResult.uid}'}',
               textAlign: TextAlign.center,
             ),
           ),
@@ -505,6 +667,7 @@ class _AppShellState extends State<AppShell> {
         selectedProjectId: selectedProjectId,
         selectionRequestId: projectSelectionRequestId,
         onProjectSaved: saveProject,
+        onProjectDeleted: deleteProject,
         onSessionSaved: saveSession,
         onTasksAdded: addTasks,
         onTaskCompleted: completeTask,
@@ -518,6 +681,11 @@ class _AppShellState extends State<AppShell> {
         onAppearanceModeChanged: widget.onAppearanceModeChanged,
         showWorkspaceStats: _showWorkspaceStats,
         onShowWorkspaceStatsChanged: setShowWorkspaceStats,
+        syncState: _syncState,
+        onSyncRequested: _syncNow,
+        authState: _authResult,
+        onLinkGoogleRequested: _linkGoogleAccount,
+        isLinkingGoogle: _isLinkingGoogle,
       ),
     ];
 
@@ -541,6 +709,9 @@ class _AppShellState extends State<AppShell> {
         onAppearanceModeChanged: widget.onAppearanceModeChanged,
         showWorkspaceStats: _showWorkspaceStats,
         onShowWorkspaceStatsChanged: setShowWorkspaceStats,
+        authState: _authResult,
+        onLinkGoogleRequested: _linkGoogleAccount,
+        isLinkingGoogle: _isLinkingGoogle,
       ),
     ];
 
@@ -581,9 +752,12 @@ class _AppShellState extends State<AppShell> {
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(
-                  child: _buildAnimatedSection(
-                    pages[selectedIndex],
-                    transitionKey: selectedIndex,
+                  child: _buildSyncedContent(
+                    context,
+                    _buildAnimatedSection(
+                      pages[selectedIndex],
+                      transitionKey: selectedIndex,
+                    ),
                   ),
                 ),
               ],
@@ -592,26 +766,30 @@ class _AppShellState extends State<AppShell> {
         }
 
         return Scaffold(
-          body: _buildAnimatedSection(
-            _mobileOpenProjectId == null
-                ? mobileTabs[_mobileTabIndex]
-                : ProjectsScreen(
-                    projects: projects,
-                    documents: documents,
-                    bookmarks: bookmarks,
-                    selectedProjectId: selectedProjectId,
-                    selectionRequestId: projectSelectionRequestId,
-                    onProjectSaved: saveProject,
-                    onSessionSaved: saveSession,
-                    onTasksAdded: addTasks,
-                    onTaskCompleted: completeTask,
-                    onDocumentSaved: saveDocument,
-                    onBookmarkSaved: saveBookmark,
-                    onDocumentDeleted: deleteDocument,
-                  ),
-            transitionKey: _mobileOpenProjectId == null
-                ? 'mobile-tab-$_mobileTabIndex'
-                : 'mobile-project-$selectedProjectId-$projectSelectionRequestId',
+          body: _buildSyncedContent(
+            context,
+            _buildAnimatedSection(
+              _mobileOpenProjectId == null
+                  ? mobileTabs[_mobileTabIndex]
+                  : ProjectsScreen(
+                      projects: projects,
+                      documents: documents,
+                      bookmarks: bookmarks,
+                      selectedProjectId: selectedProjectId,
+                      selectionRequestId: projectSelectionRequestId,
+                      onProjectSaved: saveProject,
+                      onProjectDeleted: deleteProject,
+                      onSessionSaved: saveSession,
+                      onTasksAdded: addTasks,
+                      onTaskCompleted: completeTask,
+                      onDocumentSaved: saveDocument,
+                      onBookmarkSaved: saveBookmark,
+                      onDocumentDeleted: deleteDocument,
+                    ),
+              transitionKey: _mobileOpenProjectId == null
+                  ? 'mobile-tab-$_mobileTabIndex'
+                  : 'mobile-project-$selectedProjectId-$projectSelectionRequestId',
+            ),
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _mobileOpenProjectId == null

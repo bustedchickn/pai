@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'models/app_appearance_mode.dart';
+import 'services/auth_bootstrap_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
@@ -9,12 +11,18 @@ class ProfileScreen extends StatelessWidget {
     required this.onAppearanceModeChanged,
     required this.showWorkspaceStats,
     required this.onShowWorkspaceStatsChanged,
+    required this.authState,
+    required this.onLinkGoogleRequested,
+    this.isLinkingGoogle = false,
   });
 
   final AppAppearanceMode appearanceMode;
   final ValueChanged<AppAppearanceMode> onAppearanceModeChanged;
   final bool showWorkspaceStats;
   final ValueChanged<bool> onShowWorkspaceStatsChanged;
+  final AuthBootstrapResult authState;
+  final Future<void> Function() onLinkGoogleRequested;
+  final bool isLinkingGoogle;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +66,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Appearance and workspace settings in one calm place.',
+                            'Appearance, workspace, and account settings in one calm place.',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                               height: 1.4,
@@ -69,6 +77,20 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _ProfileSection(
+              title: 'Account',
+              subtitle: authState.isGoogleLinked
+                  ? 'Your Firebase account is already linked to Google.'
+                  : authState.isAnonymous
+                  ? 'Upgrade this anonymous account without losing its existing UID or synced data.'
+                  : 'Connect Google sign-in for this app session.',
+              child: _AccountSection(
+                authState: authState,
+                onGoogleRequested: onLinkGoogleRequested,
+                isProcessing: isLinkingGoogle,
               ),
             ),
             const SizedBox(height: 16),
@@ -155,4 +177,112 @@ class _ProfileSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AccountSection extends StatelessWidget {
+  const _AccountSection({
+    required this.authState,
+    required this.onGoogleRequested,
+    required this.isProcessing,
+  });
+
+  final AuthBootstrapResult authState;
+  final Future<void> Function() onGoogleRequested;
+  final bool isProcessing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final showWindowsHint =
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.windows &&
+        !authState.isGoogleLinked;
+    final actionLabel = authState.isGoogleLinked
+        ? 'Linked to Google'
+        : authState.isAnonymous
+        ? 'Link Google Account'
+        : 'Sign in with Google';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FilledButton.icon(
+          onPressed: authState.canLinkGoogle && !isProcessing
+              ? () => onGoogleRequested()
+              : null,
+          icon: isProcessing
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  authState.isGoogleLinked
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.login_rounded,
+                ),
+          label: Text(actionLabel),
+        ),
+        const SizedBox(height: 12),
+        Text(authState.accountLabel),
+        if (authState.displayName != null &&
+            authState.displayName!.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(authState.displayName!),
+        ],
+        if (authState.email != null) ...[
+          const SizedBox(height: 4),
+          Text(authState.email!),
+        ],
+        if (authState.uid != null) ...[
+          const SizedBox(height: 4),
+          Text(authState.uid!, style: theme.textTheme.bodySmall),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _ProviderChip(
+              label: authState.isAnonymous
+                  ? 'Anonymous account'
+                  : 'Anonymous disabled',
+            ),
+            for (final provider in authState.linkedProviders)
+              _ProviderChip(label: _providerLabel(provider)),
+            if (authState.linkedProviders.isEmpty)
+              const _ProviderChip(label: 'No linked providers yet'),
+          ],
+        ),
+        if (showWindowsHint) ...[
+          const SizedBox(height: 12),
+          Text(
+            'On Windows, Google sign-in opens your browser and returns to the app when finished.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProviderChip extends StatelessWidget {
+  const _ProviderChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(label: Text(label));
+  }
+}
+
+String _providerLabel(String providerId) {
+  return switch (providerId) {
+    'google.com' => 'Google',
+    'anonymous' => 'Anonymous',
+    _ => providerId,
+  };
 }

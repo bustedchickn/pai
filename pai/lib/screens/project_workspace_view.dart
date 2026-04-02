@@ -32,6 +32,7 @@ class ProjectWorkspaceView extends StatefulWidget {
     required this.documents,
     required this.bookmarks,
     required this.onProjectSaved,
+    required this.onProjectDeleted,
     required this.onSessionSaved,
     required this.onTasksAdded,
     required this.onTaskCompleted,
@@ -46,6 +47,7 @@ class ProjectWorkspaceView extends StatefulWidget {
   final List<ProjectDocument> documents;
   final List<DocumentBookmark> bookmarks;
   final Future<void> Function(Project project) onProjectSaved;
+  final Future<void> Function(String projectId) onProjectDeleted;
   final Future<void> Function(String projectId, SessionNote session)
   onSessionSaved;
   final Future<void> Function(String projectId, List<String> tasks)
@@ -540,7 +542,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Speech-to-text is not available in this browser.'),
+          content: Text('Dictation is not available in this browser.'),
         ),
       );
       return;
@@ -770,6 +772,52 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
 
     setState(() => _loadPageIntoEditor(_briefPage));
     unawaited(_persistLastOpenedPage(_briefPage.id));
+  }
+
+  Future<void> _deleteSelectedProject() async {
+    final project = _selectedProject;
+    final colorScheme = Theme.of(context).colorScheme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete project?'),
+          content: const Text(
+            'This will remove the project from your workspace and sync the deletion to your account.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: colorScheme.error,
+                foregroundColor: colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    await widget.onProjectDeleted(project.id);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Deleted "${project.title}". Run sync when you are ready to remove it from your other devices.',
+        ),
+      ),
+    );
   }
 
   Future<void> _toggleSelectedPagePinned() async {
@@ -1172,6 +1220,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                 onNewPage: () {
                   unawaited(_createPage());
                 },
+                onDeleteProject: () {
+                  unawaited(_deleteSelectedProject());
+                },
                 onToggleAssistantDrawer: _toggleAssistantDrawer,
                 onToggleSidebar: () {
                   setState(() => _isSidebarExpanded = !_isSidebarExpanded);
@@ -1360,6 +1411,7 @@ class _WorkspaceTopBar extends StatelessWidget {
     required this.onProjectNamePressed,
     required this.onOpenNavigatorSheet,
     required this.onNewPage,
+    required this.onDeleteProject,
     required this.onToggleAssistantDrawer,
     required this.onToggleSidebar,
   });
@@ -1377,6 +1429,7 @@ class _WorkspaceTopBar extends StatelessWidget {
   final VoidCallback onProjectNamePressed;
   final VoidCallback onOpenNavigatorSheet;
   final VoidCallback onNewPage;
+  final VoidCallback onDeleteProject;
   final VoidCallback onToggleAssistantDrawer;
   final VoidCallback onToggleSidebar;
 
@@ -1517,6 +1570,9 @@ class _WorkspaceTopBar extends StatelessWidget {
                     case 'new-page':
                       onNewPage();
                       return;
+                    case 'delete-project':
+                      onDeleteProject();
+                      return;
                   }
                 },
                 itemBuilder: (context) => [
@@ -1539,6 +1595,13 @@ class _WorkspaceTopBar extends StatelessWidget {
                   const PopupMenuItem<String>(
                     value: 'new-page',
                     child: Text('New page'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete-project',
+                    child: Text(
+                      'Delete project',
+                      style: TextStyle(color: colorScheme.error),
+                    ),
                   ),
                 ],
                 icon: const Icon(Icons.more_horiz_rounded),
@@ -1608,6 +1671,43 @@ class _WorkspaceTopBar extends StatelessWidget {
               onPressed: onNewPage,
               icon: const Icon(Icons.add_rounded),
               label: const Text('New Page'),
+            ),
+            const SizedBox(width: 8),
+            PopupMenuButton<String>(
+              tooltip: 'Project actions',
+              onSelected: (value) {
+                switch (value) {
+                  case 'hub':
+                    onProjectNamePressed();
+                    return;
+                  case 'new-page':
+                    onNewPage();
+                    return;
+                  case 'delete-project':
+                    onDeleteProject();
+                    return;
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem<String>(
+                  value: 'hub',
+                  child: Text(
+                    isShowingProjectHub ? 'Open editor' : 'Open project hub',
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'new-page',
+                  child: Text('New page'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'delete-project',
+                  child: Text(
+                    'Delete project',
+                    style: TextStyle(color: colorScheme.error),
+                  ),
+                ),
+              ],
+              icon: const Icon(Icons.more_horiz_rounded),
             ),
             const SizedBox(width: 8),
             FilledButton.icon(
@@ -2264,7 +2364,7 @@ class _ProjectHubPane extends StatelessWidget {
                   ? 'Listening'
                   : isSpeechToTextAvailable
                   ? 'Dictate'
-                  : 'Speech Unavailable',
+                  : 'Dictation unavailable',
             ),
           );
         }
@@ -2483,7 +2583,7 @@ class _ProjectHubPane extends StatelessWidget {
                                       Expanded(
                                         child: Text(
                                           liveSessionTranscript.isEmpty
-                                              ? 'Listening for speech...'
+                                              ? 'Listening for dictation...'
                                               : liveSessionTranscript,
                                           style: theme.textTheme.bodySmall
                                               ?.copyWith(

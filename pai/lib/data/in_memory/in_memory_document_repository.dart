@@ -15,7 +15,7 @@ class InMemoryDocumentRepository implements DocumentRepository {
 
   @override
   Future<void> deleteDocument(String documentId) async {
-    _store.deleteDocumentRecord(documentId);
+    _store.softDeleteDocument(documentId, deletedAt: DateTime.now());
   }
 
   @override
@@ -60,6 +60,9 @@ class InMemoryDocumentRepository implements DocumentRepository {
           brief: document.content,
           briefPageId: document.id,
           updatedAt: document.updatedAt,
+          lastSyncedAt: document.lastSyncedAt,
+          isDirty: document.isDirty,
+          deletedAt: document.deletedAt,
         ),
       );
       return;
@@ -81,6 +84,9 @@ class InMemoryDocumentRepository implements DocumentRepository {
           pinned: false,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
+          lastSyncedAt: project.lastSyncedAt,
+          isDirty: project.isDirty,
+          deletedAt: project.deletedAt,
           orderIndex: 0,
         );
       }

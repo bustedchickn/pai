@@ -18,6 +18,7 @@ class InMemorySessionRepository implements SessionRepository {
       project.copyWith(
         sessions: [session, ...project.sessions],
         updatedAt: DateTime.now(),
+        isDirty: true,
       ),
     );
   }

@@ -9,6 +9,7 @@ abstract class ProjectRepository {
     required Project project,
     required BoardProject boardProject,
   });
+  Future<void> deleteProject(String projectId, {required DateTime deletedAt});
   Future<void> saveProject(Project project);
   Future<void> saveBoardProject(BoardProject boardProject);
 }

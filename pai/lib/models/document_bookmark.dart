@@ -28,4 +28,24 @@ class DocumentBookmark {
       anchor: anchor ?? this.anchor,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'documentId': documentId,
+      'label': label,
+      'note': note,
+      'anchor': anchor,
+    };
+  }
+
+  factory DocumentBookmark.fromJson(Map<String, dynamic> json) {
+    return DocumentBookmark(
+      id: json['id'] as String? ?? '',
+      documentId: json['documentId'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      note: json['note'] as String?,
+      anchor: json['anchor'] as String? ?? '',
+    );
+  }
 }

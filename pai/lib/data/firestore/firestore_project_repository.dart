@@ -52,6 +52,38 @@ class FirestoreProjectRepository implements ProjectRepository {
   }
 
   @override
+  Future<void> deleteProject(
+    String projectId, {
+    required DateTime deletedAt,
+  }) async {
+    await _ensureLoaded();
+    final uid = _requireUserId();
+    final existingProject = _localStore.projectById(projectId);
+    if (existingProject == null) {
+      return;
+    }
+
+    _localStore.softDeleteProject(projectId, deletedAt: deletedAt);
+    final deletedProject = _localStore.projectById(projectId);
+    if (deletedProject == null) {
+      return;
+    }
+
+    final boardProject =
+        _localStore.boardProjectById(projectId) ??
+        _boardProjectFromProject(deletedProject);
+    await _projectsCollectionForUser(uid)
+        .doc(projectId)
+        .set(
+          _encodeProjectDocument(
+            project: deletedProject,
+            boardProject: boardProject,
+          ),
+          SetOptions(merge: true),
+        );
+  }
+
+  @override
   Future<Project?> getProjectById(String projectId) async {
     await _ensureLoaded();
     return _localStore.projectById(projectId);
@@ -206,6 +238,13 @@ class FirestoreProjectRepository implements ProjectRepository {
       'status': project.status,
       'createdAt': Timestamp.fromDate(project.createdAt),
       'updatedAt': Timestamp.fromDate(project.updatedAt),
+      'lastSyncedAt': project.lastSyncedAt == null
+          ? null
+          : Timestamp.fromDate(project.lastSyncedAt!),
+      'deletedAt': project.deletedAt == null
+          ? null
+          : Timestamp.fromDate(project.deletedAt!),
+      'pendingSync': project.isDirty,
       'lastOpenedPageId': project.lastOpenedPageId,
       'tags': project.tags,
       'progress': boardProject.progress,
@@ -243,6 +282,10 @@ class FirestoreProjectRepository implements ProjectRepository {
       reminders: localProject?.reminders ?? const [],
       createdAt: createdAt ?? DateTime.now(),
       updatedAt: updatedAt ?? createdAt ?? DateTime.now(),
+      lastSyncedAt:
+          _timestampFrom(data['lastSyncedAt']) ?? localProject?.lastSyncedAt,
+      isDirty: data['pendingSync'] as bool? ?? localProject?.isDirty ?? false,
+      deletedAt: _timestampFrom(data['deletedAt']) ?? localProject?.deletedAt,
       lastOpenedPageId:
           data['lastOpenedPageId'] as String? ?? localProject?.lastOpenedPageId,
     );
@@ -294,6 +337,18 @@ class FirestoreProjectRepository implements ProjectRepository {
       return value.toDouble();
     }
     return null;
+  }
+
+  BoardProject _boardProjectFromProject(Project project) {
+    return BoardProject(
+      id: project.id,
+      title: project.title,
+      brief: ProjectDocumentContentCodec.previewText(project.brief),
+      tags: project.tags,
+      status: project.status,
+      progress: 0,
+      boardPosition: Offset.zero,
+    );
   }
 
   Offset? _offsetFromMap(Object? value) {

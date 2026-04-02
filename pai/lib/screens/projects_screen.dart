@@ -13,6 +13,7 @@ class ProjectsScreen extends StatelessWidget {
     required this.documents,
     required this.bookmarks,
     required this.onProjectSaved,
+    required this.onProjectDeleted,
     required this.onSessionSaved,
     required this.onTasksAdded,
     required this.onTaskCompleted,
@@ -27,6 +28,7 @@ class ProjectsScreen extends StatelessWidget {
   final List<ProjectDocument> documents;
   final List<DocumentBookmark> bookmarks;
   final Future<void> Function(Project project) onProjectSaved;
+  final Future<void> Function(String projectId) onProjectDeleted;
   final Future<void> Function(String projectId, SessionNote session)
   onSessionSaved;
   final Future<void> Function(String projectId, List<String> tasks)
@@ -46,11 +48,47 @@ class ProjectsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (projects.isEmpty) {
+      final colorScheme = Theme.of(context).colorScheme;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.folder_delete_outlined,
+                size: 42,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'No projects in your workspace.',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create a new project from the dashboard when you are ready.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ProjectWorkspaceView(
       projects: projects,
       documents: documents,
       bookmarks: bookmarks,
       onProjectSaved: onProjectSaved,
+      onProjectDeleted: onProjectDeleted,
       onSessionSaved: onSessionSaved,
       onTasksAdded: onTasksAdded,
       onTaskCompleted: onTaskCompleted,
