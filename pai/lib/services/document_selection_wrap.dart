@@ -37,16 +37,37 @@ bool applySelectionWrapEdit({
     return false;
   }
 
-  final selectedContent = controller.document.toDelta().slice(index, index + len);
+  final trimmedSelection = _trimmedSelectionRange(
+    plainText: controller.document.toPlainText(),
+    index: index,
+    len: len,
+  );
+  if (trimmedSelection == null) {
+    return false;
+  }
+
+  final documentDelta = controller.document.toDelta();
+  final leadingContent = trimmedSelection.leadingLength == 0
+      ? Delta()
+      : documentDelta.slice(index, trimmedSelection.start);
+  final selectedContent = documentDelta.slice(
+    trimmedSelection.start,
+    trimmedSelection.end,
+  );
+  final trailingContent = trimmedSelection.trailingLength == 0
+      ? Delta()
+      : documentDelta.slice(trimmedSelection.end, index + len);
   if (selectedContent.isEmpty) {
     return false;
   }
 
   final wrapperAttributes = _wrapperAttributesForSelection(controller);
   final wrappedSelection = Delta()
+    ..operations.addAll(leadingContent.toList())
     ..insert(openingCharacter, wrapperAttributes)
     ..operations.addAll(selectedContent.toList())
-    ..insert(closingCharacter, wrapperAttributes);
+    ..insert(closingCharacter, wrapperAttributes)
+    ..operations.addAll(trailingContent.toList());
 
   replaceText(
     index,
@@ -56,8 +77,8 @@ bool applySelectionWrapEdit({
   );
   controller.updateSelection(
     TextSelection(
-      baseOffset: index + 1,
-      extentOffset: index + 1 + len,
+      baseOffset: trimmedSelection.start + 1,
+      extentOffset: trimmedSelection.start + 1 + trimmedSelection.length,
     ),
     quill.ChangeSource.local,
   );
@@ -76,4 +97,62 @@ Map<String, dynamic>? _wrapperAttributesForSelection(
   }
 
   return attributes.isEmpty ? null : attributes;
+}
+
+_TrimmedSelectionRange? _trimmedSelectionRange({
+  required String plainText,
+  required int index,
+  required int len,
+}) {
+  if (len <= 0 || plainText.isEmpty) {
+    return null;
+  }
+
+  final start = index.clamp(0, plainText.length);
+  final end = (index + len).clamp(start, plainText.length);
+  if (end <= start) {
+    return null;
+  }
+
+  var trimmedStart = start;
+  var trimmedEnd = end;
+
+  while (trimmedStart < trimmedEnd &&
+      _isIgnoredSelectionBoundaryCharacter(plainText[trimmedStart])) {
+    trimmedStart++;
+  }
+  while (trimmedEnd > trimmedStart &&
+      _isIgnoredSelectionBoundaryCharacter(plainText[trimmedEnd - 1])) {
+    trimmedEnd--;
+  }
+
+  if (trimmedEnd <= trimmedStart) {
+    return null;
+  }
+
+  return _TrimmedSelectionRange(
+    start: trimmedStart,
+    end: trimmedEnd,
+    leadingLength: trimmedStart - start,
+    trailingLength: end - trimmedEnd,
+  );
+}
+
+bool _isIgnoredSelectionBoundaryCharacter(String character) =>
+    character == ' ' || character == '\n' || character == '\r';
+
+class _TrimmedSelectionRange {
+  const _TrimmedSelectionRange({
+    required this.start,
+    required this.end,
+    required this.leadingLength,
+    required this.trailingLength,
+  });
+
+  final int start;
+  final int end;
+  final int leadingLength;
+  final int trailingLength;
+
+  int get length => end - start;
 }

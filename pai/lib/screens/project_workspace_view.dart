@@ -9,8 +9,10 @@ import '../models/document_bookmark.dart';
 import '../models/project.dart';
 import '../models/project_document.dart';
 import '../models/session_note.dart';
+import '../layout/app_viewport.dart';
 import '../services/browser_speech_to_text.dart';
 import '../services/project_document_content_codec.dart';
+import '../services/task_parser.dart';
 import '../theme/app_theme.dart';
 import '../widgets/project_page_editor.dart';
 import '../widgets/status_chip.dart';
@@ -883,6 +885,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
     if (screenWidth < 720) {
       return (screenWidth - 24).clamp(280.0, 420.0).toDouble();
     }
+    if (AppViewport.isCompactDesktopWidth(screenWidth)) {
+      return 340;
+    }
     return kAssistantDrawerWidth;
   }
 
@@ -960,15 +965,18 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
   }
 
   void _extractTasksFromRecap() {
-    final candidates = _extractRecapTaskCandidates(_sessionController.text);
+    final result = parseTasks(_sessionController.text);
+    final candidates = result.finalTasks
+        .map((task) => task.title)
+        .toList(growable: false);
+    final hasActionableClauses = hasActionableTaskClauses(result);
     if (candidates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No task-like lines found yet. Try bullets or action phrasing.',
-          ),
-        ),
-      );
+      final message = !hasActionableClauses && result.signals.ambiguityDetected
+          ? 'I found intent, but not enough detail to suggest safe tasks yet.'
+          : 'No task-like phrases found yet. Try an action plus object.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
@@ -1143,7 +1151,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobileLayout = screenWidth < 900;
+    final viewportMode = AppViewport.fromWidth(screenWidth);
+    final isMobileLayout = viewportMode == AppViewportMode.mobile;
+    final isCompactDesktop = viewportMode == AppViewportMode.compactDesktop;
     final selectedPage = _selectedPage ?? _defaultPageForProject();
     final assistantPane = _WorkspaceDrawer(
       questionController: _questionController,
@@ -1197,10 +1207,26 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
         ),
         body: Padding(
           padding: EdgeInsets.fromLTRB(
-            isMobileLayout ? 10 : 20,
-            isMobileLayout ? 8 : 20,
-            isMobileLayout ? 10 : 20,
-            isMobileLayout ? 0 : 20,
+            isMobileLayout
+                ? 10
+                : isCompactDesktop
+                ? 14
+                : 20,
+            isMobileLayout
+                ? 8
+                : isCompactDesktop
+                ? 14
+                : 20,
+            isMobileLayout
+                ? 10
+                : isCompactDesktop
+                ? 14
+                : 20,
+            isMobileLayout
+                ? 0
+                : isCompactDesktop
+                ? 14
+                : 20,
           ),
           child: Column(
             children: [
@@ -1215,6 +1241,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                 isProjectSwitchAnimating: _projectSwitchController.isAnimating,
                 projectTitleAnchorKey: _projectTitleAnchorKey,
                 isMobileLayout: isMobileLayout,
+                isCompactDesktop: isCompactDesktop,
                 onProjectNamePressed: _toggleProjectHub,
                 onOpenNavigatorSheet: _openMobileNavigatorSheet,
                 onNewPage: () {
@@ -1228,13 +1255,22 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                   setState(() => _isSidebarExpanded = !_isSidebarExpanded);
                 },
               ),
-              SizedBox(height: isMobileLayout ? 8 : 16),
+              SizedBox(
+                height: isMobileLayout
+                    ? 8
+                    : isCompactDesktop
+                    ? 12
+                    : 16,
+              ),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 1040;
+                    final isWide =
+                        !isCompactDesktop && constraints.maxWidth >= 1040;
                     final sidebarWidth = _isSidebarExpanded
-                        ? kWorkspaceSidebarExpandedWidth
+                        ? isCompactDesktop
+                              ? 144.0
+                              : kWorkspaceSidebarExpandedWidth
                         : kWorkspaceSidebarCollapsedWidth;
                     final sidebar = _WorkspaceSidebar(
                       projects: widget.projects,
@@ -1243,7 +1279,9 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                       briefPage: _briefPage,
                       pinnedPages: _pinnedPages,
                       documentPages: _documentPages,
-                      isExpanded: !isWide || _isSidebarExpanded,
+                      isExpanded: isCompactDesktop
+                          ? true
+                          : !isWide || _isSidebarExpanded,
                       projectSelectorAnchorKey: _projectSelectorAnchorKey,
                       onProjectSelected: _selectProject,
                       onPageSelected: _selectPage,
@@ -1282,6 +1320,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                               unawaited(_toggleSelectedPagePinned());
                             }
                           : null,
+                      compactDesktop: isCompactDesktop,
                       onPageDraftChanged: () => setState(() {}),
                       onSavePage: () {
                         unawaited(_savePage());
@@ -1326,6 +1365,18 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                     );
 
                     if (isWide) {
+                      final switchedMainPanel =
+                          _ProjectWorkspaceSwitchTransition(
+                            key: ValueKey(
+                              'project-shell-${_selectedProject.id}',
+                            ),
+                            shellKey: _projectWorkspaceShellKey,
+                            primaryAnchorKey: _projectTitleAnchorKey,
+                            fallbackAnchorKey: _projectSelectorAnchorKey,
+                            animation: _projectSwitchController,
+                            enabled: _projectSwitchController.isAnimating,
+                            child: mainPanel,
+                          );
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1336,33 +1387,49 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                             child: sidebar,
                           ),
                           const SizedBox(width: 20),
-                          Expanded(
-                            child: _ProjectWorkspaceSwitchTransition(
-                              key: ValueKey(
-                                'project-shell-${_selectedProject.id}',
-                              ),
-                              shellKey: _projectWorkspaceShellKey,
-                              primaryAnchorKey: _projectTitleAnchorKey,
-                              fallbackAnchorKey: _projectSelectorAnchorKey,
-                              animation: _projectSwitchController,
-                              enabled: _projectSwitchController.isAnimating,
-                              child: mainPanel,
+                          Expanded(child: switchedMainPanel),
+                        ],
+                      );
+                    }
+
+                    final switchedMainPanel = _ProjectWorkspaceSwitchTransition(
+                      key: ValueKey('project-shell-${_selectedProject.id}'),
+                      shellKey: _projectWorkspaceShellKey,
+                      primaryAnchorKey: _projectTitleAnchorKey,
+                      fallbackAnchorKey: _projectSelectorAnchorKey,
+                      animation: _projectSwitchController,
+                      enabled: _projectSwitchController.isAnimating,
+                      child: mainPanel,
+                    );
+
+                    if (isCompactDesktop) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: kWorkspaceSidebarCollapsedWidth,
+                            child: _WorkspaceSidebar(
+                              projects: widget.projects,
+                              selectedProject: _selectedProject,
+                              selectedPageId: selectedPage.id,
+                              briefPage: _briefPage,
+                              pinnedPages: _pinnedPages,
+                              documentPages: _documentPages,
+                              isExpanded: false,
+                              projectSelectorAnchorKey:
+                                  _projectSelectorAnchorKey,
+                              onProjectSelected: _selectProject,
+                              onPageSelected: _selectPage,
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(child: switchedMainPanel),
                         ],
                       );
                     }
 
                     if (isMobileLayout) {
-                      return _ProjectWorkspaceSwitchTransition(
-                        key: ValueKey('project-shell-${_selectedProject.id}'),
-                        shellKey: _projectWorkspaceShellKey,
-                        primaryAnchorKey: _projectTitleAnchorKey,
-                        fallbackAnchorKey: _projectSelectorAnchorKey,
-                        animation: _projectSwitchController,
-                        enabled: _projectSwitchController.isAnimating,
-                        child: mainPanel,
-                      );
+                      return switchedMainPanel;
                     }
 
                     return Column(
@@ -1370,19 +1437,7 @@ class _ProjectWorkspaceViewState extends State<ProjectWorkspaceView>
                       children: [
                         SizedBox(height: 300, child: sidebar),
                         const SizedBox(height: 16),
-                        Expanded(
-                          child: _ProjectWorkspaceSwitchTransition(
-                            key: ValueKey(
-                              'project-shell-${_selectedProject.id}',
-                            ),
-                            shellKey: _projectWorkspaceShellKey,
-                            primaryAnchorKey: _projectTitleAnchorKey,
-                            fallbackAnchorKey: _projectSelectorAnchorKey,
-                            animation: _projectSwitchController,
-                            enabled: _projectSwitchController.isAnimating,
-                            child: mainPanel,
-                          ),
-                        ),
+                        Expanded(child: switchedMainPanel),
                       ],
                     );
                   },
@@ -1408,6 +1463,7 @@ class _WorkspaceTopBar extends StatelessWidget {
     required this.isProjectSwitchAnimating,
     required this.projectTitleAnchorKey,
     required this.isMobileLayout,
+    required this.isCompactDesktop,
     required this.onProjectNamePressed,
     required this.onOpenNavigatorSheet,
     required this.onNewPage,
@@ -1426,6 +1482,7 @@ class _WorkspaceTopBar extends StatelessWidget {
   final bool isProjectSwitchAnimating;
   final GlobalKey projectTitleAnchorKey;
   final bool isMobileLayout;
+  final bool isCompactDesktop;
   final VoidCallback onProjectNamePressed;
   final VoidCallback onOpenNavigatorSheet;
   final VoidCallback onNewPage;
@@ -1510,6 +1567,103 @@ class _WorkspaceTopBar extends StatelessWidget {
       builder: (context, constraints) {
         final useMobileTopBar = isMobileLayout || constraints.maxWidth < 760;
 
+        if (isCompactDesktop) {
+          return Row(
+            children: [
+              IconButton(
+                tooltip: 'Project pages',
+                onPressed: onOpenNavigatorSheet,
+                icon: const Icon(Icons.menu_rounded),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(child: projectTitleButton),
+                        const SizedBox(width: 8),
+                        Flexible(child: StatusChip(status: project.status)),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isShowingProjectHub ? 'Project hub' : page.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasUnsavedChanges)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(
+                    Icons.circle,
+                    size: 9,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              Tooltip(
+                message: 'New page',
+                child: IconButton(
+                  onPressed: onNewPage,
+                  icon: const Icon(Icons.add_rounded),
+                ),
+              ),
+              const SizedBox(width: 4),
+              FilledButton(
+                key: const ValueKey('assistant-drawer-button'),
+                onPressed: onToggleAssistantDrawer,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(40, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                child: Icon(
+                  isAssistantDrawerOpen
+                      ? Icons.auto_awesome_motion_rounded
+                      : Icons.auto_awesome_outlined,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                tooltip: 'Project actions',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'hub':
+                      onProjectNamePressed();
+                      return;
+                    case 'delete-project':
+                      onDeleteProject();
+                      return;
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'hub',
+                    child: Text(
+                      isShowingProjectHub ? 'Open editor' : 'Open project hub',
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete-project',
+                    child: Text(
+                      'Delete project',
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                  ),
+                ],
+                icon: const Icon(Icons.more_horiz_rounded),
+              ),
+            ],
+          );
+        }
         if (useMobileTopBar) {
           return Row(
             children: [
@@ -1739,6 +1893,7 @@ class _WorkspaceEditorPane extends StatelessWidget {
     required this.onPageDraftChanged,
     required this.onSavePage,
     required this.onBookmarkCreated,
+    this.compactDesktop = false,
     this.onRenamePage,
     this.onDuplicatePage,
     this.onDeletePage,
@@ -1755,6 +1910,7 @@ class _WorkspaceEditorPane extends StatelessWidget {
   final VoidCallback onPageDraftChanged;
   final VoidCallback onSavePage;
   final BookmarkCreateCallback onBookmarkCreated;
+  final bool compactDesktop;
   final VoidCallback? onRenamePage;
   final VoidCallback? onDuplicatePage;
   final VoidCallback? onDeletePage;
@@ -1793,6 +1949,7 @@ class _WorkspaceEditorPane extends StatelessWidget {
       onPageDraftChanged: onPageDraftChanged,
       onSavePage: onSavePage,
       onBookmarkCreated: onBookmarkCreated,
+      compactDesktop: compactDesktop,
     );
   }
 }
@@ -3111,114 +3268,4 @@ String _briefWithCompletionUpdate(
       ? 'Completed "$completedStep". All tracked next steps are done for now.'
       : 'Completed "$completedStep". $remainingSteps $remainingLabel still active.';
   return '$baseBrief$marker$update';
-}
-
-List<String> _extractRecapTaskCandidates(String recapText) {
-  final rawLines = recapText
-      .split(RegExp(r'[\r\n]+'))
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList();
-
-  final lineCandidates = <String>[
-    for (final line in rawLines)
-      if (_looksLikeRecapTask(line)) _normalizeRecapTask(line),
-  ];
-  if (lineCandidates.isNotEmpty) {
-    return _dedupeTasks(lineCandidates);
-  }
-
-  final sentenceCandidates = recapText
-      .split(RegExp(r'(?<=[.!?])\s+'))
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty && _looksLikeRecapTask(line))
-      .map(_normalizeRecapTask)
-      .toList();
-  return _dedupeTasks(sentenceCandidates);
-}
-
-bool _looksLikeRecapTask(String text) {
-  final cleaned = text.trim();
-  if (cleaned.isEmpty) {
-    return false;
-  }
-
-  final normalized = cleaned.toLowerCase();
-  if (RegExp(r'^(\-|\*|â€¢|\[ ?\]|\d+[.)])\s+').hasMatch(cleaned)) {
-    return true;
-  }
-
-  const actionPhrases = [
-    'todo',
-    'next',
-    'need to',
-    'should',
-    'follow up',
-    'add ',
-    'build ',
-    'write ',
-    'refine ',
-    'fix ',
-    'polish ',
-    'review ',
-    'create ',
-    'design ',
-    'ship ',
-    'update ',
-    'investigate ',
-    'test ',
-    'document ',
-    'prepare ',
-    'send ',
-    'draft ',
-    'clean up ',
-    'set up ',
-    'implement ',
-    'wire ',
-    'connect ',
-    'plan ',
-    'clarify ',
-    'move ',
-    'rename ',
-  ];
-
-  return actionPhrases.any((phrase) => normalized.startsWith(phrase));
-}
-
-String _normalizeRecapTask(String text) {
-  var normalized = text.trim();
-  normalized = normalized.replaceFirst(
-    RegExp(r'^(\-|\*|â€¢|\[ ?\]|\d+[.)])\s*'),
-    '',
-  );
-  normalized = normalized.replaceFirst(
-    RegExp(r'^(todo|next)\s*[:\-]\s*', caseSensitive: false),
-    '',
-  );
-  normalized = normalized.replaceFirst(
-    RegExp(r'^(need to|should)\s+', caseSensitive: false),
-    '',
-  );
-  normalized = normalized.replaceFirst(RegExp(r'[.!?]+$'), '');
-  if (normalized.isEmpty) {
-    return normalized;
-  }
-
-  return normalized[0].toUpperCase() + normalized.substring(1);
-}
-
-List<String> _dedupeTasks(List<String> tasks) {
-  final seen = <String>{};
-  final result = <String>[];
-  for (final task in tasks) {
-    final trimmed = task.trim();
-    if (trimmed.isEmpty) {
-      continue;
-    }
-    final key = trimmed.toLowerCase();
-    if (seen.add(key)) {
-      result.add(trimmed);
-    }
-  }
-  return result;
 }

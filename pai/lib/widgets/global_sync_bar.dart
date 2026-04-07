@@ -7,10 +7,12 @@ class GlobalSyncBar extends StatelessWidget {
     super.key,
     required this.syncState,
     required this.onSyncRequested,
+    this.compact = false,
   });
 
   final AppSyncState syncState;
   final VoidCallback? onSyncRequested;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -26,18 +28,25 @@ class GlobalSyncBar extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 12 : 14,
+          vertical: compact ? 8 : 10,
+        ),
         child: Wrap(
-          spacing: 12,
-          runSpacing: 8,
+          spacing: compact ? 8 : 12,
+          runSpacing: compact ? 6 : 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           alignment: WrapAlignment.end,
           children: [
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.cloud_sync_outlined, color: tone, size: 18),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.cloud_sync_outlined,
+                  color: tone,
+                  size: compact ? 16 : 18,
+                ),
+                SizedBox(width: compact ? 6 : 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -49,10 +58,11 @@ class GlobalSyncBar extends StatelessWidget {
                         color: tone,
                       ),
                     ),
-                    Text(
-                      syncState.subtitle,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    if (!compact)
+                      Text(
+                        syncState.subtitle,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                   ],
                 ),
               ],

@@ -31,6 +31,7 @@ class ProjectPageEditor extends StatefulWidget {
     required this.onPageDraftChanged,
     required this.onSavePage,
     required this.onBookmarkCreated,
+    this.compactDesktop = false,
     this.storageFormat = ProjectPageStorageFormat.richTextJson,
     this.onRenamePage,
     this.onDuplicatePage,
@@ -51,6 +52,7 @@ class ProjectPageEditor extends StatefulWidget {
   final VoidCallback onPageDraftChanged;
   final VoidCallback onSavePage;
   final BookmarkCreateCallback onBookmarkCreated;
+  final bool compactDesktop;
   final ProjectPageStorageFormat storageFormat;
   final VoidCallback? onRenamePage;
   final VoidCallback? onDuplicatePage;
@@ -527,6 +529,7 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
     final paiColors = context.paiColors;
     final isDark = theme.brightness == Brightness.dark;
     final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
+    final isCompactDesktop = widget.compactDesktop;
     final controller = _controller;
     final activeAttributes =
         controller?.getSelectionStyle().attributes ?? const {};
@@ -534,15 +537,32 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(isMobileLayout ? 24 : 28),
+        borderRadius: BorderRadius.circular(
+          isMobileLayout
+              ? 24
+              : isCompactDesktop
+              ? 24
+              : 28,
+        ),
         border: Border.all(color: colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: paiColors.panelShadow.withValues(
               alpha: isDark ? 0.18 : 0.08,
             ),
-            blurRadius: isMobileLayout ? 18 : 24,
-            offset: Offset(0, isMobileLayout ? 10 : 14),
+            blurRadius: isMobileLayout
+                ? 18
+                : isCompactDesktop
+                ? 20
+                : 24,
+            offset: Offset(
+              0,
+              isMobileLayout
+                  ? 10
+                  : isCompactDesktop
+                  ? 12
+                  : 14,
+            ),
           ),
         ],
       ),
@@ -580,6 +600,7 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
             canDuplicate: widget.onDuplicatePage != null,
             canDelete: widget.onDeletePage != null,
             onSavePage: widget.onSavePage,
+            compactDesktop: widget.compactDesktop,
           ),
           Divider(height: 1, color: colorScheme.outlineVariant),
           Expanded(
@@ -588,13 +609,19 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
                 : LayoutBuilder(
                     builder: (context, constraints) {
                       final showPageHeader =
-                          !isMobileLayout && constraints.maxHeight >= 240;
+                          !isMobileLayout &&
+                          !isCompactDesktop &&
+                          constraints.maxHeight >= 240;
                       final contentWidth = constraints.maxWidth;
                       final outerPadding = isMobileLayout
                           ? const EdgeInsets.fromLTRB(6, 6, 6, 6)
+                          : isCompactDesktop
+                          ? const EdgeInsets.fromLTRB(14, 12, 14, 14)
                           : const EdgeInsets.fromLTRB(28, 24, 28, 24);
                       final editorPadding = isMobileLayout
                           ? const EdgeInsets.fromLTRB(16, 14, 16, 20)
+                          : isCompactDesktop
+                          ? const EdgeInsets.fromLTRB(16, 14, 16, 16)
                           : const EdgeInsets.fromLTRB(20, 18, 20, 18);
 
                       return Padding(
@@ -638,7 +665,11 @@ class _ProjectPageEditorState extends State<ProjectPageEditor> {
                                         amount: isDark ? 0.08 : 0.02,
                                       ),
                                       borderRadius: BorderRadius.circular(
-                                        isMobileLayout ? 20 : 24,
+                                        isMobileLayout
+                                            ? 20
+                                            : isCompactDesktop
+                                            ? 20
+                                            : 24,
                                       ),
                                       border: Border.all(
                                         color: colorScheme.outlineVariant,
@@ -729,6 +760,7 @@ class _PageEditorToolbar extends StatelessWidget {
     required this.canDuplicate,
     required this.canDelete,
     required this.onSavePage,
+    required this.compactDesktop,
     this.onTogglePinned,
   });
 
@@ -753,11 +785,14 @@ class _PageEditorToolbar extends StatelessWidget {
   final bool canDuplicate;
   final bool canDelete;
   final VoidCallback onSavePage;
+  final bool compactDesktop;
   final VoidCallback? onTogglePinned;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final isMobileLayout = MediaQuery.sizeOf(context).width < 900;
     final infoLabels = <String>[
       pageKindLabel,
@@ -765,40 +800,42 @@ class _PageEditorToolbar extends StatelessWidget {
         if (label.trim().isNotEmpty) label.trim(),
     ];
 
+    void handleToolbarSelection(String value) {
+      if (value.startsWith('file:')) {
+        onFileMenuSelection(value.substring(5));
+        return;
+      }
+      if (value.startsWith('insert:')) {
+        onInsertMenuSelection(value.substring(7));
+        return;
+      }
+      if (value.startsWith('bookmark:')) {
+        onBookmarksMenuSelection(value.substring(9));
+        return;
+      }
+
+      switch (value) {
+        case 'pin':
+          onTogglePinned?.call();
+          return;
+        case 'format:bold':
+          onToggleBold();
+          return;
+        case 'format:italic':
+          onToggleItalic();
+          return;
+        case 'format:underline':
+          onToggleUnderline();
+          return;
+        case 'format:link':
+          onAddLink();
+          return;
+      }
+    }
+
     final overflowButton = PopupMenuButton<String>(
       tooltip: 'Page actions',
-      onSelected: (value) {
-        if (value.startsWith('file:')) {
-          onFileMenuSelection(value.substring(5));
-          return;
-        }
-        if (value.startsWith('insert:')) {
-          onInsertMenuSelection(value.substring(7));
-          return;
-        }
-        if (value.startsWith('bookmark:')) {
-          onBookmarksMenuSelection(value.substring(9));
-          return;
-        }
-
-        switch (value) {
-          case 'pin':
-            onTogglePinned?.call();
-            return;
-          case 'format:bold':
-            onToggleBold();
-            return;
-          case 'format:italic':
-            onToggleItalic();
-            return;
-          case 'format:underline':
-            onToggleUnderline();
-            return;
-          case 'format:link':
-            onAddLink();
-            return;
-        }
-      },
+      onSelected: handleToolbarSelection,
       itemBuilder: (context) => [
         const PopupMenuItem<String>(value: 'file:new', child: Text('New page')),
         if (onTogglePinned != null)
@@ -894,38 +931,442 @@ class _PageEditorToolbar extends StatelessWidget {
       ),
     );
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        isMobileLayout ? 8 : 16,
-        isMobileLayout ? 8 : 12,
-        isMobileLayout ? 8 : 16,
-        isMobileLayout ? 8 : 12,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              infoLabels.join(' â€¢ '),
-              maxLines: isMobileLayout ? 2 : 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.35,
+    if (isMobileLayout) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                infoLabels.join(' | '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
               ),
             ),
-          ),
-          if (hasChanges) ...[
-            if (!isMobileLayout) const SizedBox(width: 12),
+            if (hasChanges) ...[
+              FilledButton.icon(
+                onPressed: onSavePage,
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Save'),
+              ),
+              const SizedBox(width: 8),
+            ] else
+              const SizedBox(width: 8),
+            overflowButton,
+          ],
+        ),
+      );
+    }
+    if (compactDesktop) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    titleText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    infoLabels.join(' | '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _PageFormatButton(
+              icon: Icons.format_bold_rounded,
+              tooltip: 'Bold',
+              selected: boldEnabled,
+              onPressed: onToggleBold,
+              compact: true,
+            ),
+            _PageFormatButton(
+              icon: Icons.format_italic_rounded,
+              tooltip: 'Italic',
+              selected: italicEnabled,
+              onPressed: onToggleItalic,
+              compact: true,
+            ),
+            _PageFormatButton(
+              icon: Icons.format_underlined_rounded,
+              tooltip: 'Underline',
+              selected: underlineEnabled,
+              onPressed: onToggleUnderline,
+              compact: true,
+            ),
+            _PageFormatButton(
+              icon: Icons.link_rounded,
+              tooltip: linkEnabled ? 'Edit link' : 'Add link',
+              selected: linkEnabled,
+              onPressed: onAddLink,
+              compact: true,
+            ),
+            const SizedBox(width: 4),
+            Tooltip(
+              message: 'Save page',
+              child: FilledButton(
+                onPressed: hasChanges ? onSavePage : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(40, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                ),
+                child: const Icon(Icons.save_outlined, size: 18),
+              ),
+            ),
+            const SizedBox(width: 4),
+            overflowButton,
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrowDesktop = constraints.maxWidth < 1180;
+        final menus = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _PageToolbarMenuButton(
+              label: 'File',
+              icon: Icons.description_outlined,
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'file:new',
+                  child: Text('New page'),
+                ),
+                if (canRename)
+                  const PopupMenuItem<String>(
+                    value: 'file:rename',
+                    child: Text('Rename page'),
+                  ),
+                if (canDuplicate)
+                  const PopupMenuItem<String>(
+                    value: 'file:duplicate',
+                    child: Text('Duplicate page'),
+                  ),
+                if (canDelete)
+                  const PopupMenuItem<String>(
+                    value: 'file:delete',
+                    child: Text('Delete page'),
+                  ),
+              ],
+              onSelected: handleToolbarSelection,
+            ),
+            _PageToolbarMenuButton(
+              label: 'Insert',
+              icon: Icons.add_box_outlined,
+              itemBuilder: (context) => const [
+                PopupMenuItem<String>(
+                  value: 'insert:heading',
+                  child: Text('Heading'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'insert:subheading',
+                  child: Text('Subheading'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'insert:bullet',
+                  child: Text('Bullet list'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'insert:numbered',
+                  child: Text('Numbered list'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'insert:quote',
+                  child: Text('Quote'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'insert:divider',
+                  child: Text('Divider'),
+                ),
+              ],
+              onSelected: handleToolbarSelection,
+            ),
+            _PageToolbarMenuButton(
+              label: 'Bookmarks',
+              icon: Icons.bookmarks_outlined,
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'bookmark:new',
+                  child: Text('Create bookmark'),
+                ),
+                if (bookmarks.isEmpty)
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Text('No bookmarks yet'),
+                  ),
+                for (final bookmark in bookmarks)
+                  PopupMenuItem<String>(
+                    value: 'bookmark:bookmark:${bookmark.id}',
+                    child: Text(bookmark.label),
+                  ),
+              ],
+              onSelected: handleToolbarSelection,
+            ),
+          ],
+        );
+
+        final titleArea = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              titleText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final label in infoLabels) _PageToolbarLabel(text: label),
+                if (isPinned) const _PageToolbarLabel(text: 'Pinned'),
+              ],
+            ),
+          ],
+        );
+
+        final actions = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (onTogglePinned != null)
+              IconButton(
+                onPressed: onTogglePinned,
+                tooltip: isPinned ? 'Unpin page' : 'Pin page',
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.tintedSurface(
+                    colorScheme.surface,
+                    colorScheme.primary,
+                    amount: isDark ? 0.12 : 0.04,
+                  ),
+                  foregroundColor: isPinned
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: colorScheme.outlineVariant),
+                  ),
+                ),
+                icon: Icon(
+                  isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                ),
+              ),
+            _PageFormatButton(
+              icon: Icons.format_bold_rounded,
+              tooltip: 'Bold',
+              selected: boldEnabled,
+              onPressed: onToggleBold,
+            ),
+            _PageFormatButton(
+              icon: Icons.format_italic_rounded,
+              tooltip: 'Italic',
+              selected: italicEnabled,
+              onPressed: onToggleItalic,
+            ),
+            _PageFormatButton(
+              icon: Icons.format_underlined_rounded,
+              tooltip: 'Underline',
+              selected: underlineEnabled,
+              onPressed: onToggleUnderline,
+            ),
+            _PageFormatButton(
+              icon: Icons.link_rounded,
+              tooltip: linkEnabled ? 'Edit link' : 'Add link',
+              selected: linkEnabled,
+              onPressed: onAddLink,
+            ),
             FilledButton.icon(
-              onPressed: onSavePage,
+              onPressed: hasChanges ? onSavePage : null,
               icon: const Icon(Icons.save_outlined),
               label: const Text('Save'),
             ),
-            const SizedBox(width: 8),
-          ] else
-            const SizedBox(width: 8),
-          overflowButton,
-        ],
+          ],
+        );
+
+        if (narrowDesktop) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                menus,
+                const SizedBox(height: 10),
+                titleArea,
+                const SizedBox(height: 10),
+                actions,
+              ],
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              menus,
+              const SizedBox(width: 12),
+              Expanded(child: titleArea),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Align(alignment: Alignment.topRight, child: actions),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PageToolbarMenuButton extends StatelessWidget {
+  const _PageToolbarMenuButton({
+    required this.label,
+    required this.icon,
+    required this.itemBuilder,
+    required this.onSelected,
+  });
+
+  final String label;
+  final IconData icon;
+  final PopupMenuItemBuilder<String> itemBuilder;
+  final PopupMenuItemSelected<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    return PopupMenuButton<String>(
+      itemBuilder: itemBuilder,
+      onSelected: onSelected,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.tintedSurface(
+            colorScheme.surface,
+            colorScheme.primary,
+            amount: isDark ? 0.12 : 0.04,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PageFormatButton extends StatelessWidget {
+  const _PageFormatButton({
+    required this.icon,
+    required this.tooltip,
+    required this.selected,
+    required this.onPressed,
+    this.compact = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool selected;
+  final VoidCallback? onPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          minimumSize: Size(compact ? 36 : 40, compact ? 36 : 40),
+          padding: EdgeInsets.zero,
+          backgroundColor: selected
+              ? AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  colorScheme.primary,
+                  amount: isDark ? 0.24 : 0.1,
+                )
+              : AppTheme.tintedSurface(
+                  colorScheme.surface,
+                  colorScheme.primary,
+                  amount: isDark ? 0.12 : 0.04,
+                ),
+          foregroundColor: selected
+              ? colorScheme.primary
+              : colorScheme.onSurfaceVariant,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: colorScheme.outlineVariant),
+          ),
+        ),
+        icon: Icon(icon, size: compact ? 18 : 22),
+      ),
+    );
+  }
+}
+
+class _PageToolbarLabel extends StatelessWidget {
+  const _PageToolbarLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

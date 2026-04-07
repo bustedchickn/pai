@@ -51,6 +51,52 @@ void main() {
       );
     });
 
+    test('ignores surrounding spaces when wrapping a selection', () {
+      final controller = _controllerWithText(' hello ');
+      controller.updateSelection(
+        const TextSelection(baseOffset: 0, extentOffset: 7),
+        quill.ChangeSource.local,
+      );
+
+      final handled = applySelectionWrapEdit(
+        controller: controller,
+        index: 0,
+        len: 7,
+        data: '(',
+        replaceText: controller.replaceText,
+      );
+
+      expect(handled, isTrue);
+      expect(controller.document.toPlainText(), ' (hello) \n');
+      expect(
+        controller.selection,
+        const TextSelection(baseOffset: 2, extentOffset: 7),
+      );
+    });
+
+    test('ignores surrounding line breaks when wrapping a selection', () {
+      final controller = _controllerWithText('\nhello\n');
+      controller.updateSelection(
+        const TextSelection(baseOffset: 0, extentOffset: 7),
+        quill.ChangeSource.local,
+      );
+
+      final handled = applySelectionWrapEdit(
+        controller: controller,
+        index: 0,
+        len: 7,
+        data: '[',
+        replaceText: controller.replaceText,
+      );
+
+      expect(handled, isTrue);
+      expect(controller.document.toPlainText(), '\n[hello]\n\n');
+      expect(
+        controller.selection,
+        const TextSelection(baseOffset: 2, extentOffset: 7),
+      );
+    });
+
     test('does nothing when there is no selection', () {
       final controller = _controllerWithText('hello');
       controller.updateSelection(

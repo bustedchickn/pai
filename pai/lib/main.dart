@@ -9,6 +9,7 @@ import 'data/in_memory/in_memory_project_repository.dart';
 import 'data/in_memory/in_memory_session_repository.dart';
 import 'data/in_memory/in_memory_task_repository.dart';
 import 'firebase_options.dart';
+import 'layout/app_viewport.dart';
 import 'models/app_appearance_mode.dart';
 import 'models/app_data_snapshot.dart';
 import 'models/app_sync_state.dart';
@@ -597,20 +598,30 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _buildSyncedContent(BuildContext context, Widget child) {
+  Widget _buildSyncedContent(
+    BuildContext context,
+    Widget child, {
+    bool compact = false,
+  }) {
     return Column(
       children: [
         SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            padding: EdgeInsets.fromLTRB(
+              compact ? 12 : 16,
+              compact ? 10 : 12,
+              compact ? 12 : 16,
+              0,
+            ),
             child: Align(
               alignment: Alignment.topRight,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
+                constraints: BoxConstraints(maxWidth: compact ? 320 : 420),
                 child: GlobalSyncBar(
                   syncState: _syncState,
                   onSyncRequested: _syncNow,
+                  compact: compact,
                 ),
               ),
             ),
@@ -717,7 +728,55 @@ class _AppShellState extends State<AppShell> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth >= 900;
+        final viewportMode = AppViewport.fromWidth(constraints.maxWidth);
+        final isDesktop = viewportMode != AppViewportMode.mobile;
+        final isCompactDesktop = viewportMode == AppViewportMode.compactDesktop;
+        final railDestinations = [
+          NavigationRailDestination(
+            icon: const Tooltip(
+              message: 'Dashboard',
+              child: Icon(Icons.dashboard_outlined),
+            ),
+            selectedIcon: const Tooltip(
+              message: 'Dashboard',
+              child: Icon(Icons.dashboard),
+            ),
+            label: const Text('Dashboard'),
+          ),
+          NavigationRailDestination(
+            icon: const Tooltip(
+              message: 'Projects',
+              child: Icon(Icons.folder_outlined),
+            ),
+            selectedIcon: const Tooltip(
+              message: 'Projects',
+              child: Icon(Icons.folder),
+            ),
+            label: const Text('Projects'),
+          ),
+          NavigationRailDestination(
+            icon: const Tooltip(
+              message: 'Reminders',
+              child: Icon(Icons.notifications_outlined),
+            ),
+            selectedIcon: const Tooltip(
+              message: 'Reminders',
+              child: Icon(Icons.notifications),
+            ),
+            label: const Text('Reminders'),
+          ),
+          NavigationRailDestination(
+            icon: const Tooltip(
+              message: 'Settings',
+              child: Icon(Icons.settings_outlined),
+            ),
+            selectedIcon: const Tooltip(
+              message: 'Settings',
+              child: Icon(Icons.settings),
+            ),
+            label: const Text('Settings'),
+          ),
+        ];
 
         if (isDesktop) {
           return Scaffold(
@@ -726,29 +785,13 @@ class _AppShellState extends State<AppShell> {
                 NavigationRail(
                   selectedIndex: selectedIndex,
                   onDestinationSelected: selectPage,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.dashboard_outlined),
-                      selectedIcon: Icon(Icons.dashboard),
-                      label: Text('Dashboard'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.folder_outlined),
-                      selectedIcon: Icon(Icons.folder),
-                      label: Text('Projects'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.notifications_outlined),
-                      selectedIcon: Icon(Icons.notifications),
-                      label: Text('Reminders'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.settings_outlined),
-                      selectedIcon: Icon(Icons.settings),
-                      label: Text('Settings'),
-                    ),
-                  ],
+                  extended: false,
+                  labelType: isCompactDesktop
+                      ? NavigationRailLabelType.none
+                      : NavigationRailLabelType.all,
+                  minWidth: isCompactDesktop ? 68 : 76,
+                  minExtendedWidth: 176,
+                  destinations: railDestinations,
                 ),
                 const VerticalDivider(width: 1),
                 Expanded(
@@ -758,6 +801,7 @@ class _AppShellState extends State<AppShell> {
                       pages[selectedIndex],
                       transitionKey: selectedIndex,
                     ),
+                    compact: isCompactDesktop,
                   ),
                 ),
               ],
