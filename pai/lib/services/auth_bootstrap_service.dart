@@ -136,6 +136,12 @@ class FirebaseAuthBootstrapService implements AuthBootstrapService {
   final GoogleSignIn _googleSignIn;
   final WindowsGoogleOAuthService _windowsGoogleOAuthService;
   bool _googleInitialized = false;
+  static const String _appleGoogleClientId = String.fromEnvironment(
+    'PAI_APPLE_GOOGLE_CLIENT_ID',
+  );
+  static const String _appleGoogleServerClientId = String.fromEnvironment(
+    'PAI_APPLE_GOOGLE_SERVER_CLIENT_ID',
+  );
 
   @override
   Future<AuthBootstrapResult> ensureSignedIn() {
@@ -335,8 +341,39 @@ class FirebaseAuthBootstrapService implements AuthBootstrapService {
       return;
     }
 
-    await _googleSignIn.initialize();
+    await _googleSignIn.initialize(
+      clientId: _googleClientIdForCurrentPlatform,
+      serverClientId: _googleServerClientIdForCurrentPlatform,
+    );
     _googleInitialized = true;
+  }
+
+  String? get _googleClientIdForCurrentPlatform {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return _appleGoogleClientId.isEmpty ? null : _appleGoogleClientId;
+      case TargetPlatform.android:
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        return null;
+    }
+  }
+
+  String? get _googleServerClientIdForCurrentPlatform {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return _appleGoogleServerClientId.isEmpty
+            ? null
+            : _appleGoogleServerClientId;
+      case TargetPlatform.android:
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        return null;
+    }
   }
 
   bool get _supportsNativeGoogleSignIn {
@@ -420,13 +457,15 @@ class WindowsGoogleOAuthService {
   static const String _defaultWindowsGoogleClientId = String.fromEnvironment(
     'PAI_WINDOWS_GOOGLE_CLIENT_ID',
   );
+  static const String _redirectHost = '127.0.0.1';
+  static const String _redirectPath = '/oauth2redirect';
 
   final http.Client _httpClient;
   final String _clientId;
   final int _redirectPort;
 
   Uri get _redirectUri =>
-      Uri.parse('http://localhost:$_redirectPort/oauth2redirect');
+      Uri.parse('http://$_redirectHost:$_redirectPort$_redirectPath');
 
   Future<WindowsGoogleOAuthTokens> authenticate() async {
     if (_clientId.isEmpty) {
@@ -443,7 +482,7 @@ class WindowsGoogleOAuthService {
     final codeChallenge = _codeChallengeFor(codeVerifier);
     final state = _randomUrlSafeValue(32);
 
-    // flutter_web_auth_2 requires a fixed localhost callback on Windows.
+    // flutter_web_auth_2 listens on 127.0.0.1 for Windows loopback callbacks.
     final authorizationUri =
         Uri.https('accounts.google.com', '/o/oauth2/v2/auth', {
           'client_id': _clientId,
@@ -460,7 +499,7 @@ class WindowsGoogleOAuthService {
     try {
       callbackUrl = await FlutterWebAuth2.authenticate(
         url: authorizationUri.toString(),
-        callbackUrlScheme: 'http://localhost:$_redirectPort',
+        callbackUrlScheme: 'http://$_redirectHost:$_redirectPort',
         options: const FlutterWebAuth2Options(useWebview: false),
       );
     } on PlatformException catch (error) {
